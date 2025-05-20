@@ -1,0 +1,86 @@
+version: "3.8"
+
+services:
+  proxy:
+    image: teddysun/xray
+    container_name: vless-proxy
+    environment:
+      # Paste here 3x_ui vless realty inbound link. Format: vless://UUID@IP:PORT?type=tcp&security=reality&pbk=STR&fp=chrome&sni=yahoo.com&sid=b8&spx=NAME
+      # It needs jackett to connect to blocked torrent trackers
+      X_UI_LINK: ""
+    volumes:
+      - ./config/proxy:/etc/xray
+    entrypoint: ["/etc/xray/entrypoint.sh"]
+    ports:
+      - "1080:1080"   # SOCKS5
+      - "3128:3128"   # HTTP
+    networks:
+      - proxy-net
+
+  jackett:
+    image: linuxserver/jackett:latest
+    container_name: jackett
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Amsterdam
+    volumes:
+      - ./config/jackett:/config
+    ports:
+      - "9117:9117"
+    networks:
+      - proxy-net
+
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Amsterdam
+      - WEBUI_PORT=8080
+    volumes:
+      - ./config/qbittorrent:/config
+      - ./media:/downloads
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    networks:
+      - proxy-net
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin-test
+    volumes:
+      - ./config/jellyfin:/config
+      - ./cache/jellyfin:/cache
+      - ./media:/media
+    ports:
+      - "8096:8096"
+    networks:
+      - proxy-net
+
+  movie-downloader:
+    build: ./movie-downloader
+    container_name: movie-downloader
+    restart: unless-stopped
+    environment:
+      - JACKETT_URL=http://jackett:9117
+      - JACKETT_API_KEY=QQQQQQQQQQQ # COPY jackett api key after startup
+      - JACKETT_INDEXERS=${JACKETT_INDEXERS:-all}
+      - JACKETT_BASE_URL=http://jackett:9117/api/v2.0/indexers
+      - QB_URL=http://qbittorrent:8080
+      - QB_USER=admin
+      - QB_PASS=CHANGE_PASSWORD # login to qbittorrent web ui first, change password and paste it here
+      - TELEGRAM_BOT_TOKEN=CHANGE_TELEGRAM_BOT_TOKEN
+      - TZ=Europe/Amsterdam
+    ports:
+      - "9339:9339"
+    networks:
+      - proxy-net
+
+
+networks:
+  proxy-net:
+    driver: bridge
