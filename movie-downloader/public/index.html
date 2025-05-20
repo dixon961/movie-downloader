@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Movie Downloader</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    #search { width: 80%; padding: .5rem; font-size: 1.25rem; }
+    #btn { font-size: 1.25rem; padding: .5rem; }
+    .item { display: flex; justify-content: space-between; padding: .5rem 0; }
+    .item button { padding: .25rem .5rem; }
+
+    table {
+      border-collapse: collapse;
+      margin-top: 1rem;
+      width: 100%;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    tr:hover {
+      background-color: #f9f9f9;
+    }
+
+    /* Медиазапрос для мобильных устройств */
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      #search, #btn { width: 100%; font-size: 1.5rem; }
+      #search { margin-bottom: 0.5rem; }
+      th, td { padding: 1rem; }
+      .download-btn { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Movie Downloader</h1>
+  <input id="search" placeholder="Search for a movie…">
+  <button id="btn">🔍</button>
+  <div id="results"></div>
+
+  <script>
+    const input = document.getElementById('search');
+    const btn   = document.getElementById('btn');
+    const resDiv = document.getElementById('results');
+
+    async function doSearch() {
+      const q = input.value.trim();
+      if (!q) return;
+      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const list = await r.json();
+
+      if (list.length === 0) {
+        resDiv.innerHTML = "<p>No results found.</p>";
+        return;
+      }
+
+      resDiv.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Size</th><th>Title</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            ${list.map(item => `
+              <tr>
+                <td>${item.size || 'Unknown'}</td>
+                <td>${item.title}</td>
+                <td><button class="download-btn" onclick="startDownload('${encodeURIComponent(item.link)}')">⬇️ Download</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    async function startDownload(link) {
+      await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link: decodeURIComponent(link) })
+      });
+      alert('Download started!');
+    }
+
+    btn.addEventListener('click',  doSearch);
+    input.addEventListener('keypress', e => {
+      if (e.key === 'Enter') doSearch();
+    });
+  </script>
+</body>
+</html>
