@@ -123,7 +123,7 @@ if (TELEGRAM_BOT_TOKEN) {
     const buttons = data.slice(0, 5).map((item, index) => {
       const shortId = `id_${index}_${Date.now()}`; // Create a unique short ID
       linkMap.set(shortId, item.link); // Store the mapping
-      const buttonText = `[${item.size}] ${item.title}`;
+      const buttonText = `[${item.size}]-{Seeds:${item.seeders}} ${item.title}`;
       return [{
         text: buttonText,
         callback_data: shortId
