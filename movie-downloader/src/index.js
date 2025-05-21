@@ -125,7 +125,7 @@ if (TELEGRAM_BOT_TOKEN) {
       const shortId = `id_${index}_${Date.now()}`;
       linkMap.set(shortId, { link: item.link, title: item.title });
       let shortTitle = item.title.length > 40 ? item.title.slice(0, 37) + '...' : item.title;
-      const buttonText = `[${item.size}] ${shortTitle}`;
+      const buttonText = `[${item.size}] {#${item.seeders || '0'}} ${shortTitle}`;
       return [{ text: buttonText, callback_data: shortId }];
     });
 
