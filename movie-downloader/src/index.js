@@ -112,22 +112,21 @@ app.post('/api/download', async (req, res, next) => {
 // 3) Telegram bot
 if (TELEGRAM_BOT_TOKEN) {
   const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
-  const linkMap = new Map(); // To store the mapping of short IDs to links
+  const linkMap = new Map(); // shortId -> { link, title }
 
+  // 1. Handle search query
   bot.onText(/(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const query = match[1];
     const { data } = await axios.get(`http://localhost:9339/api/search`, { params: { q: query } });
 
-    // Pick first 5 and create a short ID for each
-    const buttons = data.slice(0, 5).map((item, index) => {
-      const shortId = `id_${index}_${Date.now()}`; // Create a unique short ID
-      linkMap.set(shortId, item.link); // Store the mapping
-      const buttonText = `[${item.size}]-{Seeds:${item.seeders}} ${item.title}`;
-      return [{
-        text: buttonText,
-        callback_data: shortId
-      }];
+    // Prepare buttons with short titles
+    const buttons = data.slice(0, 10).map((item, index) => {
+      const shortId = `id_${index}_${Date.now()}`;
+      linkMap.set(shortId, { link: item.link, title: item.title });
+      let shortTitle = item.title.length > 40 ? item.title.slice(0, 37) + '...' : item.title;
+      const buttonText = `[${item.size}] ${shortTitle}`;
+      return [{ text: buttonText, callback_data: shortId }];
     });
 
     bot.sendMessage(chatId, 'Select a movie to download:', {
@@ -135,11 +134,51 @@ if (TELEGRAM_BOT_TOKEN) {
     });
   });
 
+  // 2. Handle movie selection
   bot.on('callback_query', async qry => {
-    const link = linkMap.get(qry.data); // Retrieve the actual link using the short ID
-    if (link) {
-      await axios.post(`http://localhost:9339/api/download`, { link });
-      bot.answerCallbackQuery(qry.id, { text: 'Download started!' });
+    const chatId = qry.message.chat.id;
+    const data = qry.data;
+
+    // If user pressed "yes" or "no"
+    if (data.startsWith('yes_') || data.startsWith('no_')) {
+      const shortId = data.split('_')[1];
+      const info = linkMap.get(shortId);
+
+      if (data.startsWith('yes_')) {
+        // Start download
+        if (info) {
+          await axios.post(`http://localhost:9339/api/download`, { link: info.link });
+          bot.editMessageText('Download started!', { chat_id: chatId, message_id: qry.message.message_id });
+        } else {
+          bot.editMessageText('Invalid selection!', { chat_id: chatId, message_id: qry.message.message_id });
+        }
+      } else {
+        // User pressed "No"
+        bot.editMessageText('Cancelled. Send a new search query.', { chat_id: chatId, message_id: qry.message.message_id });
+      }
+      bot.answerCallbackQuery(qry.id);
+      return;
+    }
+
+    // If user pressed a movie button
+    const info = linkMap.get(data);
+    if (info) {
+      // Show full title and ask for confirmation
+      bot.editMessageText(
+        `Full title:\n${info.title}\n\nDOWNLOAD?`,
+        {
+          chat_id: chatId,
+          message_id: qry.message.message_id,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✅ Yes', callback_data: `yes_${data}` },
+                { text: '❌ No', callback_data: `no_${data}` }
+              ]
+            ]
+          }
+        }
+      );
     } else {
       bot.answerCallbackQuery(qry.id, { text: 'Invalid selection!' });
     }
