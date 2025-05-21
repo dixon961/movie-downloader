@@ -74,6 +74,7 @@ services:
       - QB_USER=admin
       - QB_PASS=CHANGE_PASSWORD # login to qbittorrent web ui first, change password and paste it here
       - TELEGRAM_BOT_TOKEN=CHANGE_TELEGRAM_BOT_TOKEN
+      - ALLOWED_USERS=1111,2222,3333 # comma-separated users, that will have access to this bot
       - TZ=Europe/Amsterdam
     ports:
       - "9339:9339"
