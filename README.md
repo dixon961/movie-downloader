@@ -12,3 +12,5 @@ Steps to setup:
 6. get from qbittorrent container logs password and go to IP:8080 with this pass and change it. Now paste it to QB_PASS env in docker-compose.yml
 7. `docker compose down` and `docker compose up -d --build`
 8. Now you can go to IP:9339 search for movie, press download and it will appear soon in jellyfin library - IP:8096
+
+You can delete all port mappings in docker-compose.yml except for **jellyfin** and **movie-downloader** (if you want to use WebUI) after the setup.
