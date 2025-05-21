@@ -18,7 +18,8 @@ const {
   QB_URL,
   QB_USER,
   QB_PASS,
-  TELEGRAM_BOT_TOKEN
+  TELEGRAM_BOT_TOKEN,
+  ALLOWED_USERS
 } = process.env;
 
 const jar    = new tough.CookieJar();
@@ -110,13 +111,25 @@ app.post('/api/download', async (req, res, next) => {
 });
 
 // 3) Telegram bot
+const allowedUsers = ALLOWED_USERS
+  ? ALLOWED_USERS.split(',').map(id => Number(id.trim()))
+  : [];
+
 if (TELEGRAM_BOT_TOKEN) {
   const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
   const linkMap = new Map(); // shortId -> { link, title }
 
+  // Helper function to check if user is allowed
+  function isAllowed(userId) {
+    return allowedUsers.includes(userId);
+  }
+
   // 1. Handle search query
   bot.onText(/(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    if (!isAllowed(userId)) return; // Ignore if not allowed
+
     const query = match[1];
     const { data } = await axios.get(`http://localhost:9339/api/search`, { params: { q: query } });
 
@@ -137,6 +150,9 @@ if (TELEGRAM_BOT_TOKEN) {
   // 2. Handle movie selection
   bot.on('callback_query', async qry => {
     const chatId = qry.message.chat.id;
+    const userId = qry.from.id;
+    if (!isAllowed(userId)) return; // Ignore if not allowed
+
     const data = qry.data;
 
     // If user pressed "yes" or "no"
