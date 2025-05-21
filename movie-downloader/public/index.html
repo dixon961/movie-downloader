@@ -62,12 +62,13 @@
       resDiv.innerHTML = `
         <table>
           <thead>
-            <tr><th>Size</th><th>Title</th><th>Action</th></tr>
+	    <tr><th>Size</th><th>Seeds</th><th>Title</th><th>Action</th></tr>
           </thead>
           <tbody>
             ${list.map(item => `
               <tr>
                 <td>${item.size || 'Unknown'}</td>
+		            <td>${item.seeders || '0'}</td>
                 <td>${item.title}</td>
                 <td><button class="download-btn" onclick="startDownload('${encodeURIComponent(item.link)}')">⬇️ Download</button></td>
               </tr>
