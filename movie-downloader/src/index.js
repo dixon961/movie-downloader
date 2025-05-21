@@ -157,7 +157,7 @@ if (TELEGRAM_BOT_TOKEN) {
 
     // If user pressed "yes" or "no"
     if (data.startsWith('yes_') || data.startsWith('no_')) {
-      const shortId = data.split('_')[1];
+      const shortId = data.slice(data.indexOf('_') + 1);
       const info = linkMap.get(shortId);
 
       if (data.startsWith('yes_')) {
