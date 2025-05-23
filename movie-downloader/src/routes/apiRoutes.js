@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.get('/search', searchController.search);
 router.post('/download', downloadController.download);
+router.get('/download/status', downloadController.getDownloadStatus);
 
 export default router;

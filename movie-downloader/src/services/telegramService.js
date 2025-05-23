@@ -1,19 +1,37 @@
 import TelegramBot from 'node-telegram-bot-api';
 import config from '../config/index.js';
 import * as jackettService from './jackettService.js';
-import * as qbittorrentService from './qbittorrentService.js';
+import * as qbittorrentService from './qbittorrentService.js'; // Ensure this is imported
 
 const { botToken, allowedUsers } = config.telegram;
 
 const linkMap = new Map(); // shortId -> { link, title }
 
+// Store user state, e.g., if they are expecting to type a search query
+const userState = new Map(); // userId -> 'awaiting_search_query'
+
 function isAllowed(userId) {
   if (!allowedUsers || allowedUsers.length === 0) {
     console.warn('Telegram: No allowed users configured. Bot will not respond to any user.');
-    return false; // Or true if you want it open by default (not recommended)
+    return false;
   }
   return allowedUsers.includes(Number(userId));
 }
+
+// Function to send main menu
+function sendMainMenu(chatId, text = "👋 Hello! How can I help you today?") {
+  bot.sendMessage(chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🔍 Search for Media', callback_data: 'action_search' }],
+        [{ text: '📊 View Download Status', callback_data: 'action_status' }]
+      ]
+    }
+  });
+}
+
+
+let bot; // Declare bot instance variable
 
 export function initializeBot() {
   if (!botToken) {
@@ -24,131 +42,180 @@ export function initializeBot() {
     console.log('No ALLOWED_USERS for Telegram bot. Bot will be initialized but will not respond to users.');
   }
 
-
-  const bot = new TelegramBot(botToken, { polling: true });
+  bot = new TelegramBot(botToken, { polling: true }); // Assign to the outer scope variable
   console.log('Telegram bot initialized and polling...');
 
-  // 1. Handle search query (any text that is not a command)
-  bot.onText(/(.+)/, async (msg, match) => {
-    // Ignore if message is a command (starts with /)
-    if (msg.text && msg.text.startsWith('/')) {
-        return;
+  // Command to show the main menu
+  bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    if (!isAllowed(userId)) return;
+    userState.delete(userId); // Clear any pending state
+    sendMainMenu(chatId);
+  });
+
+  // Handle text messages for search (if user is in 'awaiting_search_query' state)
+  bot.on('message', async (msg) => {
+    // Ignore if it's a command handled by onText or if user is not in search state
+    if (msg.text && msg.text.startsWith('/') || !userState.has(msg.from.id) || userState.get(msg.from.id) !== 'awaiting_search_query') {
+      // If user sends random text not in search mode, and not /start, maybe resend menu or ignore
+      if (msg.text && !msg.text.startsWith('/') && !userState.has(msg.from.id)) {
+        // sendMainMenu(msg.chat.id, "🤔 I didn't understand that. Please choose an option or type /start.");
+      }
+      return;
     }
 
     const chatId = msg.chat.id;
     const userId = msg.from.id;
+    if (!isAllowed(userId)) return;
 
-    if (!isAllowed(userId)) {
-      console.log(`Telegram: User ${userId} (${msg.from.username}) is not allowed. Ignoring message: ${msg.text}`);
-      // Optionally send a message: bot.sendMessage(chatId, "You are not authorized to use this bot.");
-      return;
-    }
+    const query = msg.text;
+    userState.delete(userId); // Clear state after getting query
 
-    const query = match[1];
+    bot.sendMessage(chatId, `⏳ Searching for "${query}"... please wait.`);
     console.log(`Telegram: Received search query "${query}" from user ${userId}`);
 
     try {
       const searchResults = await jackettService.searchTorrents(query);
 
       if (!searchResults || searchResults.length === 0) {
-        bot.sendMessage(chatId, 'No results found for your query.');
+        bot.sendMessage(chatId, `🤷 Oops! No results found for "${query}". Try a different search term?`);
+        sendMainMenu(chatId, "What would you like to do next?");
         return;
       }
 
       const buttons = searchResults.slice(0, 10).map((item, index) => {
-        const shortId = `id_${index}_${Date.now()}`; // Unique ID for callback
+        const shortId = `dl_${index}_${Date.now()}`; // Prefix for download items
         linkMap.set(shortId, { link: item.link, title: item.title });
-
-        // Message format is preserved
-        let shortTitle = item.title; // Original code used full title here
-        const buttonText = `[${item.size}] {#${item.seeders || '0'}} ${shortTitle}`;
+        // More user-friendly button text
+        const buttonText = `[${item.size}] S:${item.seeders || '0'} P:${item.peers || '0'} - ${item.title.substring(0, 40)}${item.title.length > 40 ? '...' : ''}`;
         return [{ text: buttonText, callback_data: shortId }];
       });
 
-      bot.sendMessage(chatId, 'Select a movie to download:', {
+      bot.sendMessage(chatId, '✨ Here are the top results. Select one to see more details:', {
         reply_markup: { inline_keyboard: buttons }
       });
     } catch (error) {
       console.error(`Telegram: Error processing search for "${query}":`, error);
-      bot.sendMessage(chatId, 'Sorry, an error occurred while searching.');
+      bot.sendMessage(chatId, '❌ Sorry, an error occurred while searching. Please try again later.');
+      sendMainMenu(chatId, "What would you like to do next?");
     }
   });
 
-  // 2. Handle movie selection (callback query)
+  // Handle callback queries (button presses)
   bot.on('callback_query', async qry => {
     const chatId = qry.message.chat.id;
     const userId = qry.from.id;
     const messageId = qry.message.message_id;
+    const callbackData = qry.data;
 
     if (!isAllowed(userId)) {
-      console.log(`Telegram: User ${userId} (${qry.from.username}) is not allowed for callback_query.`);
-      bot.answerCallbackQuery(qry.id, { text: 'You are not authorized.' });
+      bot.answerCallbackQuery(qry.id, { text: '🚫 You are not authorized.' });
       return;
     }
 
-    const callbackData = qry.data;
     console.log(`Telegram: Received callback_query "${callbackData}" from user ${userId}`);
+    bot.answerCallbackQuery(qry.id); // Acknowledge immediately
 
-    // If user pressed "yes" or "no" for confirmation
-    if (callbackData.startsWith('yes_') || callbackData.startsWith('no_')) {
-      const decision = callbackData.startsWith('yes_') ? 'yes' : 'no';
-      const shortId = callbackData.substring(callbackData.indexOf('_') + 1);
-      const info = linkMap.get(shortId);
+    // Main Actions
+    if (callbackData === 'action_search') {
+      userState.set(userId, 'awaiting_search_query');
+      bot.editMessageText("✍️ Okay, type your search query now:", { chat_id: chatId, message_id: messageId, reply_markup: null });
+      return;
+    }
+
+    if (callbackData === 'action_status') {
+      bot.editMessageText("⏳ Fetching download statuses...", { chat_id: chatId, message_id: messageId, reply_markup: null });
+      try {
+        const statuses = await qbittorrentService.getTorrentsInfo();
+        if (!statuses || statuses.length === 0) {
+          bot.sendMessage(chatId, "🤷 No active downloads found right now.");
+        } else {
+          let statusMessage = "📊 Current Download Statuses:\n\n";
+          statuses.forEach(s => {
+            statusMessage += `🎬 *${s.name}*\n`;
+            statusMessage += `💾 Size: ${s.size}\n`;
+            statusMessage += `📈 Progress: ${s.progress}%\n`;
+            statusMessage += `🚦 Status: ${s.status}\n\n`;
+          });
+          bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+        }
+      } catch (error) {
+        console.error('Telegram: Error fetching download statuses:', error);
+        bot.sendMessage(chatId, '❌ Sorry, an error occurred while fetching download statuses.');
+      }
+      // After showing status, resend main menu for next action
+      sendMainMenu(chatId, "What would you like to do next?");
+      // Delete the "Fetching..." message if you want, or let it be replaced by sendMainMenu's new message
+      // bot.deleteMessage(chatId, messageId); // Optional: if you want to remove the "Fetching..." message
+      return;
+    }
+
+    // Download item selection / confirmation
+    if (callbackData.startsWith('dl_')) { // A specific torrent result was clicked
+      const info = linkMap.get(callbackData);
+      if (info) {
+        bot.editMessageText(
+          `🎬 You selected:\n*${info.title}*\n\nDo you want to start the download?`,
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '✅ Yes, Download!', callback_data: `confirm_yes_${callbackData}` },
+                  { text: '❌ No, Cancel', callback_data: `confirm_no_${callbackData}` }
+                ]
+              ]
+            }
+          }
+        );
+      } else {
+        bot.editMessageText('⚠️ Invalid selection or it has expired. Please try searching again.', { chat_id: chatId, message_id: messageId, reply_markup: null });
+        sendMainMenu(chatId, "What would you like to do next?");
+      }
+      return;
+    }
+
+    // Confirmation for download
+    if (callbackData.startsWith('confirm_yes_') || callbackData.startsWith('confirm_no_')) {
+      const decision = callbackData.startsWith('confirm_yes_') ? 'yes' : 'no';
+      const originalCallbackData = callbackData.substring(callbackData.indexOf('_', callbackData.indexOf('_') + 1) + 1); // e.g., dl_...
+      const info = linkMap.get(originalCallbackData);
 
       if (decision === 'yes') {
         if (info && info.link) {
           try {
+            bot.editMessageText(`⏳ Starting download for:\n*${info.title}*`, { chat_id: chatId, message_id: messageId, parse_mode: 'Markdown', reply_markup: null });
             await qbittorrentService.addTorrent(info.link);
-            // Message format is preserved
-            bot.editMessageText('Download started!', { chat_id: chatId, message_id: messageId, reply_markup: null });
-            linkMap.delete(shortId); // Clean up
+            bot.sendMessage(chatId, `✅ Download started for *${info.title}*!\nYou can check the status using the main menu.`, { parse_mode: 'Markdown'});
+            linkMap.delete(originalCallbackData);
           } catch (error) {
             console.error(`Telegram: Error starting download for "${info.title}":`, error);
-            bot.editMessageText('Failed to start download. Please try again or check logs.', { chat_id: chatId, message_id: messageId, reply_markup: null });
+            bot.sendMessage(chatId, `❌ Failed to start download for *${info.title}*. Please try again or check logs.`, { parse_mode: 'Markdown'});
           }
         } else {
-          bot.editMessageText('Invalid selection or link expired. Please try searching again.', { chat_id: chatId, message_id: messageId, reply_markup: null });
+          bot.editMessageText('⚠️ Invalid selection or link expired. Please try searching again.', { chat_id: chatId, message_id: messageId, reply_markup: null });
         }
       } else { // User pressed "No"
-        // Message format is preserved
-        bot.editMessageText('Cancelled. Send a new search query.', { chat_id: chatId, message_id: messageId, reply_markup: null });
-        linkMap.delete(shortId); // Clean up
+        bot.editMessageText('👍 Download cancelled. What would you like to do next?', { chat_id: chatId, message_id: messageId, reply_markup: null });
+        linkMap.delete(originalCallbackData);
       }
-      bot.answerCallbackQuery(qry.id); // Acknowledge the callback query
+      sendMainMenu(chatId, "What would you like to do next?");
       return;
     }
 
-    // If user pressed a movie button (initial selection)
-    const info = linkMap.get(callbackData);
-    if (info) {
-      // Message format is preserved
-      bot.editMessageText(
-        `Full title:\n${info.title}\n\nDOWNLOAD?`,
-        {
-          chat_id: chatId,
-          message_id: messageId,
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '✅ Yes', callback_data: `yes_${callbackData}` },
-                { text: '❌ No', callback_data: `no_${callbackData}` }
-              ]
-            ]
-          }
-        }
-      );
-      bot.answerCallbackQuery(qry.id);
-    } else {
-      bot.answerCallbackQuery(qry.id, { text: 'Invalid selection or selection expired!' });
-      bot.editMessageText('Invalid selection or selection expired. Please try searching again.', { chat_id: chatId, message_id: messageId, reply_markup: null });
-    }
+    // Fallback for unknown callback data
+    console.warn(`Telegram: Unhandled callback_data: ${callbackData}`);
+    bot.editMessageText("🤔 I'm not sure what to do with that. Let's start over.", { chat_id: chatId, message_id: messageId, reply_markup: null });
+    sendMainMenu(chatId);
   });
 
   bot.on('polling_error', (error) => {
     console.error('Telegram Polling Error:', error.code, error.message);
-    // For specific errors like ETELEGRAM, you might want to handle them differently
-    // e.g., if (error.code === 'EFATAL') process.exit(1);
   });
   
+  console.log("Telegram bot event handlers registered.");
   return bot;
 }

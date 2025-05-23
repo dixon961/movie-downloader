@@ -2,6 +2,7 @@ import axios from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import tough from 'tough-cookie';
 import config from '../config/index.js';
+import { formatSize } from '../utils/formatters.js'; // We'll need formatSize here too
 
 const { url: QB_URL, user: QB_USER, pass: QB_PASS } = config.qbittorrent;
 
@@ -13,16 +14,15 @@ const client = wrapper(axios.create({
 }));
 
 let isAuthenticated = false;
-let authRetryAttempted = false;
+let authRetryAttempted = false; // Per-call retry flag
 
-async function ensureAuthenticated() {
-  if (isAuthenticated) {
-    // Optionally, add a check here to see if the session is still valid
-    // For simplicity, we assume it is once authenticated.
+async function ensureAuthenticated(forceReAuth = false) {
+  if (isAuthenticated && !forceReAuth) {
     return;
   }
 
   if (!QB_USER || !QB_PASS) {
+    console.error('qBittorrent username or password not configured.');
     throw new Error('qBittorrent username or password not configured.');
   }
 
@@ -39,60 +39,123 @@ async function ensureAuthenticated() {
     if (loginResp.data === 'Ok.') {
       console.log('qBittorrent authentication successful.');
       isAuthenticated = true;
-      authRetryAttempted = false; // Reset retry flag on success
+      authRetryAttempted = false; // Reset general retry flag on success
     } else {
+      isAuthenticated = false;
       throw new Error(`qBittorrent login failed: ${loginResp.data}`);
     }
   } catch (error) {
     isAuthenticated = false;
     console.error('qBittorrent authentication error:', error.message);
-    throw error; // Re-throw to be caught by the caller
+    throw error;
   }
 }
 
-export async function addTorrent(link) {
-  try {
-    await ensureAuthenticated();
-  } catch (authError) {
-    // If initial auth fails, and we haven't retried in this call chain
-    if (!authRetryAttempted) {
-        console.log('Retrying qBittorrent authentication once more...');
-        authRetryAttempted = true;
-        isAuthenticated = false; // Force re-authentication
-        try {
-            await ensureAuthenticated();
-        } catch (retryAuthError) {
-            throw new Error(`qBittorrent authentication failed after retry: ${retryAuthError.message}`);
-        }
-    } else {
-        throw authError; // If retry already attempted, throw original auth error
+// Helper to handle API calls with authentication
+async function qbApiCall(method, path, data = null, params = null) {
+  let attempt = 0;
+  const maxAttempts = 2; // Initial attempt + 1 retry
+
+  while (attempt < maxAttempts) {
+    try {
+      await ensureAuthenticated(attempt > 0); // Force re-auth on retry
+      authRetryAttempted = attempt > 0; // Set per-call retry flag
+
+      let response;
+      const requestConfig = { headers: {} };
+      if (params) requestConfig.params = params;
+
+      if (method.toLowerCase() === 'post') {
+        requestConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        response = await client.post(path, data ? new URLSearchParams(data).toString() : '', requestConfig);
+      } else { // GET
+        response = await client.get(path, requestConfig);
+      }
+      
+      authRetryAttempted = false; // Reset per-call retry flag on success
+      return response.data;
+
+    } catch (error) {
+      console.error(`qBittorrent API call to ${path} failed (attempt ${attempt + 1}):`, error.response?.data || error.message);
+      isAuthenticated = false; // Assume auth might be lost on any API error
+      attempt++;
+      if (attempt >= maxAttempts) {
+        throw error; // Re-throw after max attempts
+      }
+      // Wait a bit before retrying (optional)
+      // await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
+  // Should not be reached if logic is correct, but as a fallback:
+  throw new Error(`qBittorrent API call to ${path} failed after multiple retries.`);
+}
 
 
+export async function addTorrent(link) {
   console.log('Sending link to qBittorrent:', link);
   try {
-    const addResp = await client.post(
-      '/api/v2/torrents/add',
-      new URLSearchParams({ urls: link }).toString(),
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      }
-    );
-    console.log('Add torrent response status:', addResp.status, 'Data:', addResp.data);
-    if (addResp.data === 'Ok.') {
+    const responseData = await qbApiCall('post', '/api/v2/torrents/add', { urls: link });
+    if (responseData === 'Ok.') {
       return { status: 'OK', message: 'Torrent added successfully.' };
     } else {
-      // qBittorrent might return 200 OK but with an error message in the body
-      throw new Error(`Failed to add torrent: ${addResp.data}`);
+      throw new Error(`Failed to add torrent: ${responseData}`);
     }
   } catch (error) {
-    console.error('Error adding torrent to qBittorrent:', error.response?.data || error.message);
-    // If it's an auth error (e.g. session expired), reset auth state
-    if (error.response?.status === 401 || error.response?.status === 403) {
-        isAuthenticated = false;
-        console.log('qBittorrent session might have expired. Resetting authentication state.');
-    }
-    throw error; // Re-throw for the controller to handle
+    // Error already logged in qbApiCall
+    throw new Error(`Failed to add torrent to qBittorrent: ${error.message}`);
   }
+}
+
+// NEW FUNCTION to get torrent list
+export async function getTorrentsInfo() {
+  console.log('Fetching torrent list from qBittorrent...');
+  try {
+    const torrents = await qbApiCall('get', '/api/v2/torrents/info');
+    // API returns an array of torrent objects
+    // We need to map them to a more friendly format
+    return torrents.map(torrent => ({
+      hash: torrent.hash,
+      name: torrent.name,
+      size: formatSize(torrent.size), // Total size of the torrent
+      total_size: torrent.total_size, // For calculating percentage if needed
+      downloaded: formatSize(torrent.downloaded),
+      progress: (torrent.progress * 100).toFixed(1), // progress is 0 to 1
+      status: mapStatusCodeToString(torrent.state), // qBittorrent state
+      // Common states: downloading, pausedUP, pausedDL, queuedUP, queuedDL, uploading, stalledUP, stalledDL, checkingUP, checkingDL, error
+      // You might want to simplify these for the UI
+      // eta: torrent.eta, // Estimated time remaining in seconds
+      // dlspeed: formatSize(torrent.dlspeed) + '/s',
+      // upspeed: formatSize(torrent.upspeed) + '/s',
+      // ratio: torrent.ratio.toFixed(2),
+    }));
+  } catch (error) {
+    // Error already logged in qbApiCall
+    throw new Error(`Failed to fetch torrent info from qBittorrent: ${error.message}`);
+  }
+}
+
+// Helper to map qBittorrent states to human-readable strings
+function mapStatusCodeToString(state) {
+  // Based on qBittorrent Web API documentation for 'state'
+  const states = {
+    error: 'Error ❌',
+    missingFiles: 'Missing Files ⚠️',
+    uploading: 'Uploading ⬆️',
+    pausedUP: 'Paused (Seeding) ⏸️🌱',
+    pausedDL: 'Paused (Downloading) ⏸️📥',
+    queuedUP: 'Queued (Seeding) 🕒🌱',
+    queuedDL: 'Queued (Downloading) 🕒📥',
+    stalledUP: 'Stalled (Seeding) 🛑🌱',
+    stalledDL: 'Stalled (Downloading) 🛑📥',
+    checkingUP: 'Checking (Seeding) 🔍🌱',
+    checkingDL: 'Checking (Downloading) 🔍📥',
+    forcedUP: 'Forced Seeding 🚀🌱', // (meta)
+    forcedDL: 'Forced Downloading 🚀📥', // (meta)
+    downloading: 'Downloading 📥',
+    metaDL: 'Fetching Metadata ℹ️',
+    allocating: 'Allocating 💾',
+    moving: 'Moving 🚚',
+    unknown: 'Unknown 🤔'
+  };
+  return states[state] || state; // Fallback to raw state if not mapped
 }
