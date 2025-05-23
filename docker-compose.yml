@@ -6,7 +6,7 @@ services:
     container_name: vless-proxy
     environment:
       # Paste here 3x_ui vless realty inbound link. Format: vless://UUID@IP:PORT?type=tcp&security=reality&pbk=STR&fp=chrome&sni=yahoo.com&sid=b8&spx=NAME
-      # It needs jackett to connect to blocked torrent trackers
+      # Jackett needs it to connect to blocked torrent trackers
       X_UI_LINK: ""
     volumes:
       - ./config/proxy:/etc/xray
