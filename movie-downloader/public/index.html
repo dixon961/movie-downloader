@@ -51,39 +51,63 @@
     async function doSearch() {
       const q = input.value.trim();
       if (!q) return;
-      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const list = await r.json();
+      resDiv.innerHTML = "<p>Searching...</p>"; // Add a loading indicator
+      try {
+        const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        if (!r.ok) {
+          const errData = await r.json();
+          throw new Error(errData.message || `HTTP error! status: ${r.status}`);
+        }
+        const list = await r.json();
 
-      if (list.length === 0) {
-        resDiv.innerHTML = "<p>No results found.</p>";
-        return;
+        if (list.length === 0) {
+          resDiv.innerHTML = "<p>No results found.</p>";
+          return;
+        }
+
+        resDiv.innerHTML = `
+          <table>
+            <thead>
+        <tr><th>Size</th><th>Seeds</th><th>Title</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              ${list.map(item => `
+                <tr>
+                  <td>${item.size || 'Unknown'}</td>
+                  <td>${item.seeders || '0'}</td>
+                  <td>${item.title}</td>
+                  <td><button class="download-btn" onclick="startDownload('${encodeURIComponent(item.link)}')">⬇️ Download</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>`;
+      } catch (error) {
+        console.error('Search failed:', error);
+        resDiv.innerHTML = `<p>Error during search: ${error.message}. Please try again.</p>`;
       }
-
-      resDiv.innerHTML = `
-        <table>
-          <thead>
-	    <tr><th>Size</th><th>Seeds</th><th>Title</th><th>Action</th></tr>
-          </thead>
-          <tbody>
-            ${list.map(item => `
-              <tr>
-                <td>${item.size || 'Unknown'}</td>
-		            <td>${item.seeders || '0'}</td>
-                <td>${item.title}</td>
-                <td><button class="download-btn" onclick="startDownload('${encodeURIComponent(item.link)}')">⬇️ Download</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>`;
     }
 
     async function startDownload(link) {
-      await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link: decodeURIComponent(link) })
-      });
-      alert('Download started!');
+      try {
+        const response = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link: decodeURIComponent(link) })
+        });
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.message || `HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        if (result.status === 'OK') {
+          alert('Download started!');
+        } else {
+          alert('Failed to start download: ' + (result.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Download request failed:', error);
+        alert(`Error starting download: ${error.message}`);
+      }
     }
 
     btn.addEventListener('click',  doSearch);
