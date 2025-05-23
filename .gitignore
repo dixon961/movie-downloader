@@ -3,3 +3,5 @@
 
 # But not this specific file
 !/config/proxy/entrypoint.sh
+docker-compose.yml
+/media
