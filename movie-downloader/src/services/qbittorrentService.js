@@ -134,6 +134,56 @@ export async function getTorrentsInfo() {
   }
 }
 
+export async function deleteTorrent(hash, deleteFiles = true) {
+  if (!hash) {
+    console.error('qBittorrent deleteTorrent: Hash is required.');
+    throw new Error('Torrent hash is required to delete.');
+  }
+  console.log(`Requesting deletion of torrent ${hash} from qBittorrent (deleteFiles: ${deleteFiles})...`);
+  try {
+    // The API endpoint is /api/v2/torrents/delete
+    // It accepts 'hashes' (pipe-separated if multiple) and 'deleteFiles' (boolean)
+    const params = {
+      hashes: hash, // For a single torrent
+      deleteFiles: deleteFiles.toString() // API expects 'true' or 'false' as strings
+    };
+    // This endpoint uses POST, but parameters are often sent in the query string or form-data body.
+    // Let's try form-data body as it's common for qB actions.
+    // The qbApiCall helper needs to be flexible enough or we make a specific call.
+    // For simplicity, let's use a direct call here, ensuring form-urlencoded content type.
+
+    await ensureAuthenticated(); // Ensure we are logged in
+
+    const response = await client.post(
+        '/api/v2/torrents/delete',
+        new URLSearchParams(params).toString(), // Send as x-www-form-urlencoded
+        {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        }
+    );
+    
+    // qBittorrent API usually returns 200 OK on success for this, without a specific "Ok." message in body.
+    // If it fails, it might return a non-200 status or an error message in the body.
+    if (response.status === 200) {
+      console.log(`Torrent ${hash} deletion request successful.`);
+      return { status: 'OK', message: `Torrent ${deleteFiles ? 'and files ' : ''}marked for deletion.` };
+    } else {
+      // This case might not be hit if axios throws for non-2xx statuses by default
+      throw new Error(`Failed to delete torrent ${hash}. Status: ${response.status}, Data: ${response.data}`);
+    }
+
+  } catch (error) {
+    const errorMessage = error.response?.data || error.message;
+    console.error(`Failed to delete torrent ${hash} from qBittorrent:`, errorMessage);
+    // If it's an auth error (e.g. session expired), reset auth state
+    if (error.response?.status === 401 || error.response?.status === 403) {
+        isAuthenticated = false; // Handled by ensureAuthenticated/qbApiCall in more complex scenarios
+        console.log('qBittorrent session might have expired. Resetting authentication state.');
+    }
+    throw new Error(`Failed to delete torrent: ${errorMessage}`);
+  }
+}
+
 // Helper to map qBittorrent states to human-readable strings
 function mapStatusCodeToString(state) {
   // Based on qBittorrent Web API documentation for 'state'

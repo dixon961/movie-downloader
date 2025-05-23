@@ -7,5 +7,6 @@ const router = express.Router();
 router.get('/search', searchController.search);
 router.post('/download', downloadController.download);
 router.get('/download/status', downloadController.getDownloadStatus);
+router.delete('/download/torrent/:hash', downloadController.deleteTorrent);
 
 export default router;
