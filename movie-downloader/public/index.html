@@ -4,118 +4,217 @@
   <meta charset="utf-8">
   <title>🎬 Movie Downloader Deluxe</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; background-color: #f4f7f6; color: #333; }
-    h1 { color: #2c3e50; text-align: center; margin-bottom: 1.5rem; /* Added margin below h1 */ }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      padding: 2rem; 
+      background-color: #f4f7f6; 
+      color: #333; 
+      line-height: 1.6;
+    }
+    body.modal-open {
+        overflow: hidden; /* Prevent background scrolling when modal is open */
+    }
+    h1 { 
+      color: #2c3e50; 
+      text-align: center; 
+      margin-bottom: 1.5rem;
+    }
     
-    /* Spoiler for Download Status - now at the top */
-    details#download-status-spoiler { /* Made selector more specific */
+    /* Spoiler for Download Status */
+    details#download-status-spoiler {
       background-color: #fff;
       border: 1px solid #ddd;
       border-radius: 4px;
-      margin-bottom: 2rem; /* Spacing below the spoiler */
+      margin-bottom: 2rem; 
       padding: 0;
-      box-shadow: 0 2px 3px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
-    details#download-status-spoiler summary { /* Made selector more specific */
-      font-weight: bold;
-      padding: 1rem;
+    details#download-status-spoiler summary {
+      font-weight: 600;
+      padding: 1rem 1.25rem;
       cursor: pointer;
       background-color: #f9f9f9;
-      border-bottom: 1px solid #ddd; /* Keep border for when open */
+      border-bottom: 1px solid #ddd;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      transition: background-color 0.2s ease-in-out;
     }
     details#download-status-spoiler summary:hover { background-color: #f0f0f0; }
     details#download-status-spoiler[open] summary { 
         border-bottom: 1px solid #ddd; 
+        background-color: #e9ecef;
     }
-    details#download-status-spoiler .status-content { padding: 1rem; } /* Made selector more specific */
+    details#download-status-spoiler .status-content { padding: 1.25rem; }
     
     #update-status-btn {
         display: block;
-        margin: 0 0 0.5rem auto; /* Adjusted margin for top position */
-        padding: .6rem 1rem;
-        background-color: #e67e22;
+        margin: 0 0 1rem auto; 
+        padding: .7rem 1.2rem;
+        background-color: #007bff;
         color: white;
         border: none;
         border-radius: 4px;
         cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s ease-in-out;
     }
-    #update-status-btn:hover { background-color: #d35400; }
+    #update-status-btn:hover { background-color: #0056b3; }
+    #update-status-btn:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+    }
 
     /* Search container styles */
-    #search-container { display: flex; margin-bottom: 1.5rem; }
-    #search { flex-grow: 1; padding: .75rem; font-size: 1.25rem; border: 1px solid #ccc; border-radius: 4px 0 0 4px; }
-    #btn { font-size: 1.25rem; padding: .75rem 1rem; background-color: #3498db; color: white; border: none; border-radius: 0 4px 4px 0; cursor: pointer; }
-    #btn:hover { background-color: #2980b9; }
+    #search-container { display: flex; margin-bottom: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-radius: 4px; }
+    #search { flex-grow: 1; padding: .75rem 1rem; font-size: 1.1rem; border: 1px solid #ced4da; border-right: none; border-radius: 4px 0 0 4px; box-sizing: border-box; }
+    #search:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+    #btn { font-size: 1.1rem; padding: .75rem 1.25rem; background-color: #28a745; color: white; border: 1px solid #28a745; border-radius: 0 4px 4px 0; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease-in-out; }
+    #btn:hover { background-color: #218838; }
     
-    .results-table, .status-table {
-      border-collapse: collapse;
-      margin-top: 1rem;
-      width: 100%;
-      box-shadow: 0 2px 3px rgba(0,0,0,0.1);
-      background-color: white;
-    }
-    .results-table th, .results-table td,
-    .status-table th, .status-table td {
-      text-align: left;
-      padding: 0.8rem 1rem;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    .results-table th, .status-table th {
-      background-color: #ecf0f1;
-      color: #2c3e50;
-      font-weight: 600;
-    }
-    .results-table tr:hover, .status-table tr:hover {
-      background-color: #f9f9f9;
-    }
-    .download-btn {
-      padding: .4rem .8rem;
-      background-color: #2ecc71;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    .download-btn:hover { background-color: #27ae60; }
-    .delete-btn {
-      padding: .4rem .8rem;
-      background-color: #e74c3c; /* Red for delete */
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      margin-left: 5px; /* Space from other potential buttons */
-    }
-    .delete-btn:hover { background-color: #c0392b; }
-    .status-table th.actions-col, .status-table td.actions-col {
-        text-align: right; /* Align action buttons to the right */
-    }
+    /* Tables */
+    .results-table, .status-table { border-collapse: collapse; margin-top: 1rem; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background-color: white; border-radius: 4px; overflow: hidden; }
+    .results-table th, .results-table td, .status-table th, .status-table td { text-align: left; padding: 0.9rem 1.1rem; border-bottom: 1px solid #e9ecef; }
+    .results-table th, .status-table th { background-color: #f8f9fa; color: #495057; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; }
+    .results-table tr:last-child td, .status-table tr:last-child td { border-bottom: none; }
+    .results-table tr:hover, .status-table tr:hover { background-color: #f1f3f5; }
 
-    @media (max-width: 600px) {
+    /* Action Buttons */
+    .action-btn { padding: .5rem .9rem; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: background-color 0.2s ease-in-out, transform 0.1s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3em; }
+    .action-btn:hover { transform: translateY(-1px); }
+    .action-btn:active { transform: translateY(0px); }
+    .download-btn { background-color: #17a2b8; }
+    .download-btn:hover { background-color: #138496; }
+    .delete-btn { background-color: #dc3545; }
+    .delete-btn:hover { background-color: #c82333; }
+    .status-table th.actions-col, .status-table td.actions-col { text-align: right; }
+
+    /* Notification Styles */
+    #notification-container { position: fixed; top: 20px; right: 20px; z-index: 1050; display: flex; flex-direction: column; gap: 12px; }
+    .notification { padding: 1rem 1.25rem; border-radius: 6px; color: #fff; font-size: 0.95rem; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transform: translateX(110%); transition: opacity 0.35s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.35s cubic-bezier(0.215, 0.610, 0.355, 1); min-width: 280px; max-width: 380px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .notification.show { opacity: 1; transform: translateX(0); }
+    .notification.success { background-color: #28a745; }
+    .notification.error { background-color: #dc3545; }
+    .notification.warning { background-color: #ffc107; color: #212529; }
+    .notification.info { background-color: #17a2b8; }
+
+    /* Custom Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6); /* Darker overlay */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1040; /* Below notifications but above page */
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+    }
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.3s ease, visibility 0s linear 0s;
+    }
+    .modal-content {
+      background-color: #fff;
+      padding: 25px 30px; /* More padding */
+      border-radius: 8px; /* More rounded */
+      box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+      width: 90%;
+      max-width: 450px; /* Slightly wider */
+      transform: scale(0.95);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .modal-overlay.show .modal-content {
+        transform: scale(1);
+        opacity: 1;
+    }
+    .modal-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #343a40;
+        margin-top: 0;
+        margin-bottom: 15px;
+    }
+    .modal-body {
+        font-size: 1rem;
+        color: #495057;
+        margin-bottom: 25px;
+        line-height: 1.7;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end; /* Align buttons to the right */
+      gap: 12px; /* Space between buttons */
+    }
+    .modal-btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: 5px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .modal-btn-confirm {
+      background-color: #28a745; /* Green for confirm */
+      color: white;
+    }
+    .modal-btn-confirm:hover { background-color: #218838; box-shadow: 0 2px 4px rgba(40,167,69,.4);}
+    .modal-btn-cancel {
+      background-color: #6c757d; /* Gray for cancel */
+      color: white;
+    }
+    .modal-btn-cancel:hover { background-color: #5a6268; box-shadow: 0 2px 4px rgba(108,117,125,.4);}
+    .modal-btn-delete { /* Specific style for delete confirmation */
+        background-color: #dc3545;
+        color: white;
+    }
+    .modal-btn-delete:hover { background-color: #c82333; box-shadow: 0 2px 4px rgba(220,53,69,.4);}
+
+
+    @media (max-width: 768px) {
       body { padding: 1rem; }
       h1 { font-size: 1.8rem; }
-      details#download-status-spoiler summary { padding: 0.8rem; }
-      details#download-status-spoiler .status-content { padding: 0.8rem; }
-      #update-status-btn { width: 100%; margin-bottom: 1rem; }
-
+      details#download-status-spoiler summary { padding: 0.8rem 1rem; }
+      details#download-status-spoiler .status-content { padding: 1rem; }
+      #update-status-btn { width: auto; margin-left: auto; margin-right: 0; }
       #search-container { flex-direction: column; }
-      #search, #btn { width: 100%; border-radius: 4px; font-size: 1.1rem; }
-      #search { margin-bottom: 0.5rem; }
+      #search, #btn { width: 100%; border-radius: 4px; font-size: 1rem; }
+      #search { margin-bottom: 0.5rem; border-right: 1px solid #ced4da; }
       #btn { padding: .8rem; }
-      th, td { padding: .8rem; font-size: 0.9rem; }
-      .download-btn, .delete-btn { font-size: 1rem; }
+      .results-table th, .results-table td, .status-table th, .status-table td { padding: .8rem; font-size: 0.85rem; word-break: break-word; }
+      .action-btn { font-size: 0.9rem; padding: .4rem .7rem; }
+      #notification-container { top: 10px; right: 10px; left: 10px; align-items: center; }
+      .notification { min-width: auto; width: calc(100% - 20px); margin: 0 auto; }
+      .modal-content { padding: 20px; }
+      .modal-title { font-size: 1.2rem; }
+      .modal-body { font-size: 0.95rem; }
     }
   </style>
 </head>
 <body>
+  <div id="notification-container"></div>
+
+  <!-- Custom Modal Structure -->
+  <div id="custom-modal-overlay" class="modal-overlay">
+    <div id="custom-modal-content" class="modal-content">
+      <h3 id="modal-title" class="modal-title">Confirmation</h3>
+      <p id="modal-body" class="modal-body">Are you sure?</p>
+      <div id="modal-actions" class="modal-actions">
+        <button id="modal-btn-cancel" class="modal-btn modal-btn-cancel">Cancel</button>
+        <button id="modal-btn-confirm" class="modal-btn modal-btn-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <h1>🎬 Movie Downloader Deluxe</h1>
 
-  <!-- MOVED: Download Status Section to the TOP -->
   <details id="download-status-spoiler">
     <summary>📊 Download Status <span id="status-summary-count">(0 active)</span></summary>
     <div class="status-content">
@@ -126,13 +225,11 @@
     </div>
   </details>
 
-  <!-- Search Section remains below status -->
   <div id="search-container">
-    <input id="search" placeholder="Search for a movie or show…">
+    <input id="search" placeholder="Search for a movie or show…" aria-label="Search for media">
     <button id="btn">🔍 Search</button>
   </div>
   
-  <!-- Results from search -->
   <div id="results"></div>
 
   <script>
@@ -142,81 +239,135 @@
     const updateStatusBtn = document.getElementById('update-status-btn');
     const statusResultsDiv = document.getElementById('status-results');
     const statusSummaryCount = document.getElementById('status-summary-count');
-    const downloadStatusSpoiler = document.getElementById('download-status-spoiler'); // Get spoiler element
+    const downloadStatusSpoiler = document.getElementById('download-status-spoiler');
+    const notificationContainer = document.getElementById('notification-container');
 
-    async function doSearch() {
-      // ... (doSearch function remains the same)
-      const q = searchInput.value.trim();
-      if (!q) return;
-      resultsDiv.innerHTML = "<p>⏳ Searching, please wait...</p>";
-      try {
-        const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        if (!r.ok) {
-          const errData = await r.json();
-          throw new Error(errData.message || `HTTP error! status: ${r.status}`);
-        }
-        const list = await r.json();
+    // Modal Elements
+    const modalOverlay = document.getElementById('custom-modal-overlay');
+    const modalTitleEl = document.getElementById('modal-title');
+    const modalBodyEl = document.getElementById('modal-body');
+    const modalBtnConfirm = document.getElementById('modal-btn-confirm');
+    const modalBtnCancel = document.getElementById('modal-btn-cancel');
+    let modalResolve = null; // To store the Promise's resolve function
 
-        if (list.length === 0) {
-          resultsDiv.innerHTML = "<p>🤷 No results found for your query.</p>";
-          return;
-        }
+    function showNotification(message, type = 'info', duration = 4000) {
+      // ... (showNotification function remains the same as previous version)
+      const notification = document.createElement('div');
+      notification.classList.add('notification', type);
+      notification.textContent = message;
+      notificationContainer.appendChild(notification);
+      requestAnimationFrame(() => { requestAnimationFrame(() => { notification.classList.add('show'); }); });
+      const dismiss = () => {
+        notification.classList.remove('show');
+        setTimeout(() => { if (notification.parentNode) { notification.parentNode.removeChild(notification); } }, 350);
+      };
+      notification.addEventListener('click', dismiss);
+      if (duration > 0) { setTimeout(() => { if (notification.classList.contains('show')) { dismiss(); } }, duration); }
+    }
 
-        resultsDiv.innerHTML = `
-          <table class="results-table">
-            <thead>
-              <tr><th>Size</th><th>Seeds</th><th>Title</th><th>Indexer</th><th>Action</th></tr>
-            </thead>
-            <tbody>
-              ${list.map(item => `
-                <tr>
-                  <td>${item.size || 'N/A'}</td>
-                  <td>${item.seeders || '0'}</td>
-                  <td>${item.title}</td>
-                  <td>${item.indexer || 'N/A'}</td>
-                  <td><button class="download-btn" onclick="startDownload('${encodeURIComponent(item.link)}', this)">⬇️ Download</button></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>`;
-      } catch (error) {
-        console.error('Search failed:', error);
-        resultsDiv.innerHTML = `<p>❌ Error during search: ${error.message}. Please try again.</p>`;
+    // Custom Confirmation Modal Function
+    function showConfirmationModal({ title = 'Confirm Action', body = 'Are you sure you want to proceed?', confirmText = 'Confirm', cancelText = 'Cancel', confirmButtonClass = 'modal-btn-confirm' }) {
+      return new Promise((resolve) => {
+        modalResolve = resolve; // Store resolve function to be called by button clicks
+
+        modalTitleEl.textContent = title;
+        modalBodyEl.innerHTML = body; // Use innerHTML to allow basic HTML in body
+        modalBtnConfirm.textContent = confirmText;
+        modalBtnCancel.textContent = cancelText;
+
+        // Apply specific class for confirm button (e.g., for delete)
+        modalBtnConfirm.className = `modal-btn ${confirmButtonClass}`;
+
+        document.body.classList.add('modal-open');
+        modalOverlay.classList.add('show');
+      });
+    }
+
+    function closeModal(result) {
+      document.body.classList.remove('modal-open');
+      modalOverlay.classList.remove('show');
+      if (modalResolve) {
+        modalResolve(result); // Resolve the promise with true (confirm) or false (cancel)
+        modalResolve = null; // Clear for next use
       }
     }
 
-    async function startDownload(link, buttonElement) {
-      // ... (startDownload function remains the same)
+    modalBtnConfirm.addEventListener('click', () => closeModal(true));
+    modalBtnCancel.addEventListener('click', () => closeModal(false));
+    // Optional: Close modal if overlay is clicked (but not content)
+    modalOverlay.addEventListener('click', (event) => {
+        if (event.target === modalOverlay) {
+            closeModal(false);
+        }
+    });
+
+
+    async function doSearch() {
+      // ... (doSearch function remains the same, uses showNotification for empty query)
+      const q = searchInput.value.trim();
+      if (!q) { showNotification('⚠️ Please enter a search term.', 'warning', 2500); return; }
+      resultsDiv.innerHTML = "<p>⏳ Searching, please wait...</p>";
+      try {
+        const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        if (!r.ok) { const errData = await r.json(); throw new Error(errData.message || `HTTP error! status: ${r.status}`); }
+        const list = await r.json();
+        if (list.length === 0) { resultsDiv.innerHTML = "<p>🤷 No results found for your query.</p>"; return; }
+        resultsDiv.innerHTML = `
+          <table class="results-table">
+            <thead><tr><th>Size</th><th>Seeds</th><th>Title</th><th>Indexer</th><th>Action</th></tr></thead>
+            <tbody>
+              ${list.map(item => `
+                <tr>
+                  <td>${item.size || 'N/A'}</td><td>${item.seeders || '0'}</td>
+                  <td>${item.title}</td><td>${item.indexer || 'N/A'}</td>
+                  <td><button class="action-btn download-btn" onclick="startDownload('${encodeURIComponent(item.link)}', this, '${item.title.replace(/'/g, "\\'")}')">⬇️ Download</button></td>
+                </tr>`).join('')}
+            </tbody></table>`;
+      } catch (error) {
+        console.error('Search failed:', error);
+        resultsDiv.innerHTML = `<p>❌ Error during search: ${error.message}. Please try again.</p>`;
+        showNotification(`❌ Search Error: ${error.message}`, 'error');
+      }
+    }
+
+    async function startDownload(link, buttonElement, title) {
+      // Use custom modal for confirmation
+      const confirmed = await showConfirmationModal({
+        title: '🚀 Start Download?',
+        body: `Do you want to download:<br><strong>${title}</strong>?`,
+        confirmText: 'Yes, Download',
+        cancelText: 'No, Cancel'
+      });
+
+      if (!confirmed) {
+        showNotification('👍 Download cancelled.', 'info', 2000);
+        return;
+      }
+
       buttonElement.disabled = true;
-      buttonElement.textContent = '⏳ Adding...';
+      buttonElement.innerHTML = '⏳ Adding...';
       try {
         const response = await fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ link: decodeURIComponent(link) })
         });
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.message || `HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || `HTTP error! status: ${response.status}`);}
         const result = await response.json();
         if (result.status === 'OK') {
-          alert('✅ Download request sent successfully! Check status above.');
-          buttonElement.textContent = '✅ Added';
-          // Automatically open and update status spoiler
-          if (!downloadStatusSpoiler.hasAttribute('open')) {
-            downloadStatusSpoiler.setAttribute('open', '');
-          }
-          fetchDownloadStatus(); // Refresh status
+          showNotification('✅ Download request sent! Check status.', 'success');
+          buttonElement.innerHTML = '✅ Added';
+          if (!downloadStatusSpoiler.hasAttribute('open')) { downloadStatusSpoiler.setAttribute('open', ''); }
+          fetchDownloadStatus();
         } else {
-          alert('⚠️ Failed to start download: ' + (result.message || 'Unknown error'));
-          buttonElement.textContent = 'Retry ⬇️';
+          showNotification(`⚠️ Failed to start download: ${result.message || 'Unknown error'}`, 'warning');
+          buttonElement.innerHTML = 'Retry ⬇️';
           buttonElement.disabled = false;
         }
       } catch (error) {
         console.error('Download request failed:', error);
-        alert(`❌ Error starting download: ${error.message}`);
-        buttonElement.textContent = 'Retry ⬇️';
+        showNotification(`❌ Error starting download: ${error.message}`, 'error');
+        buttonElement.innerHTML = 'Retry ⬇️';
         buttonElement.disabled = false;
       }
     }
@@ -224,114 +375,74 @@
     async function fetchDownloadStatus() {
       // ... (fetchDownloadStatus function remains the same)
       statusResultsDiv.innerHTML = "<p>⏳ Fetching download statuses...</p>";
-      updateStatusBtn.disabled = true;
-      updateStatusBtn.textContent = '🔄 Updating...';
+      updateStatusBtn.disabled = true; updateStatusBtn.innerHTML = '🔄 Updating...';
       try {
         const response = await fetch('/api/download/status');
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.message || `HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || `HTTP error! status: ${response.status}`); }
         const statuses = await response.json();
-
-        if (statuses.length === 0) {
-          statusResultsDiv.innerHTML = "<p>🤷 No active or recent downloads found.</p>";
-          statusSummaryCount.textContent = `(0 downloads)`;
-          return;
-        }
-        
-        const activeDownloads = statuses.filter(s => 
-            s.status.toLowerCase().includes('downloading') || 
-            s.status.toLowerCase().includes('queued') ||
-            s.status.toLowerCase().includes('checking') ||
-            (s.status.toLowerCase().includes('stalled') && !s.status.toLowerCase().includes('seeding'))
-        ).length;
+        if (statuses.length === 0) { statusResultsDiv.innerHTML = "<p>🤷 No active or recent downloads found.</p>"; statusSummaryCount.textContent = `(0 downloads)`; return; }
+        const activeDownloads = statuses.filter(s => s.status.toLowerCase().includes('downloading') || s.status.toLowerCase().includes('queued') || s.status.toLowerCase().includes('checking') || (s.status.toLowerCase().includes('stalled') && !s.status.toLowerCase().includes('seeding'))).length;
         statusSummaryCount.textContent = `(${statuses.length} total, ${activeDownloads} active)`;
-
         statusResultsDiv.innerHTML = `
           <table class="status-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Size</th>
-                <th>Progress</th>
-                <th>Status</th>
-                <th class="actions-col">Actions</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Name</th><th>Size</th><th>Progress</th><th>Status</th><th class="actions-col">Actions</th></tr></thead>
             <tbody>
               ${statuses.map(item => `
                 <tr>
-                  <td>${item.name}</td>
-                  <td>${item.size}</td>
-                  <td>${item.progress}%</td>
-                  <td>${item.status}</td>
-                  <td class="actions-col">
-                    <button class="delete-btn" onclick="deleteTorrent('${item.hash}', this)">🗑️ Delete</button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>`;
+                  <td>${item.name}</td><td>${item.size}</td><td>${item.progress}%</td><td>${item.status}</td>
+                  <td class="actions-col"><button class="action-btn delete-btn" onclick="deleteTorrent('${item.hash}', this, '${item.name.replace(/'/g, "\\'")}')">🗑️ Delete</button></td>
+                </tr>`).join('')}
+            </tbody></table>`;
       } catch (error) {
         console.error('Failed to fetch download status:', error);
         statusResultsDiv.innerHTML = `<p>❌ Error fetching statuses: ${error.message}.</p>`;
+        showNotification(`❌ Error fetching statuses: ${error.message}`, 'error');
         statusSummaryCount.textContent = `(error)`;
       } finally {
-        updateStatusBtn.disabled = false;
-        updateStatusBtn.textContent = '🔄 Update Status';
+        updateStatusBtn.disabled = false; updateStatusBtn.innerHTML = '🔄 Update Status';
       }
     }
 
-    async function deleteTorrent(hash, buttonElement) {
-      // ... (deleteTorrent function remains the same)
-      if (!confirm('Are you sure you want to delete this torrent and its downloaded files? This action cannot be undone.')) {
+    async function deleteTorrent(hash, buttonElement, name) {
+      // Use custom modal for confirmation
+      const confirmed = await showConfirmationModal({
+        title: '🗑️ Confirm Deletion',
+        body: `Are you sure you want to delete:<br><strong>${name}</strong><br>and its downloaded files? This action cannot be undone.`,
+        confirmText: 'Yes, Delete Files',
+        cancelText: 'No, Keep It',
+        confirmButtonClass: 'modal-btn-delete' // Use red button for delete confirm
+      });
+
+      if (!confirmed) {
+        showNotification('👍 Deletion cancelled.', 'info', 2000);
         return;
       }
       
       buttonElement.disabled = true;
-      buttonElement.textContent = 'Deleting...';
-
+      buttonElement.innerHTML = 'Deleting...';
       try {
-        const response = await fetch(`/api/download/torrent/${hash}?deleteFiles=true`, {
-          method: 'DELETE'
-        });
-
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.message || `HTTP error! status: ${response.status}`);
-        }
+        const response = await fetch(`/api/download/torrent/${hash}?deleteFiles=true`, { method: 'DELETE' });
+        if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || `HTTP error! status: ${response.status}`); }
         const result = await response.json();
         if (result.status === 'OK') {
-          alert('✅ Torrent deletion initiated successfully!');
+          showNotification('✅ Torrent deletion initiated!', 'success');
           fetchDownloadStatus(); 
         } else {
-          alert('⚠️ Failed to delete torrent: ' + (result.message || 'Unknown error'));
-          buttonElement.disabled = false;
-          buttonElement.textContent = '🗑️ Delete';
+          showNotification(`⚠️ Failed to delete torrent: ${result.message || 'Unknown error'}`, 'warning');
+          buttonElement.disabled = false; buttonElement.innerHTML = '🗑️ Delete';
         }
       } catch (error) {
         console.error('Delete torrent request failed:', error);
-        alert(`❌ Error deleting torrent: ${error.message}`);
-        buttonElement.disabled = false;
-        buttonElement.textContent = '🗑️ Delete';
+        showNotification(`❌ Error deleting torrent: ${error.message}`, 'error');
+        buttonElement.disabled = false; buttonElement.innerHTML = '🗑️ Delete';
       }
     }
 
     searchBtn.addEventListener('click', doSearch);
-    searchInput.addEventListener('keypress', e => {
-      if (e.key === 'Enter') doSearch();
-    });
+    searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') doSearch(); });
     updateStatusBtn.addEventListener('click', fetchDownloadStatus);
 
-    // Fetch status on page load if spoiler is open by default, or just fetch always
-    // To make it open by default, add the 'open' attribute to the <details> tag
-    // e.g. <details id="download-status-spoiler" open>
-    if (downloadStatusSpoiler.hasAttribute('open')) {
-       fetchDownloadStatus();
-    }
-    // Or if you want to always fetch on load, regardless of spoiler state:
-    // fetchDownloadStatus(); 
+    if (downloadStatusSpoiler.hasAttribute('open')) { fetchDownloadStatus(); }
   </script>
 </body>
 </html>
