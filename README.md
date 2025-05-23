@@ -15,3 +15,5 @@ Steps to setup:
 9. Now you can go to IP:9339 search for movie, press download and it will appear soon in jellyfin library - IP:8096
 
 You can delete all port mappings in docker-compose.yml except for **jellyfin** and **movie-downloader** (if you want to use WebUI) after the setup.
+
+Wow!
