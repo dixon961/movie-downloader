@@ -2,6 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <!-- 1. Added Viewport Meta Tag -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🎬 Movie Downloader Deluxe</title>
   <style>
     body { 
@@ -10,6 +12,7 @@
       background-color: #f4f7f6; 
       color: #333; 
       line-height: 1.6;
+      margin: 0; /* Added to ensure no default body margin interferes */
     }
     body.modal-open {
         overflow: hidden; /* Prevent background scrolling when modal is open */
@@ -18,6 +21,7 @@
       color: #2c3e50; 
       text-align: center; 
       margin-bottom: 1.5rem;
+      margin-top: 0; /* Adjusted for better spacing with body padding */
     }
     
     /* Spoiler for Download Status */
@@ -34,7 +38,7 @@
       padding: 1rem 1.25rem;
       cursor: pointer;
       background-color: #f9f9f9;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #ddd; /* Keep border for when not open */
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -80,7 +84,7 @@
     .results-table tr:hover, .status-table tr:hover { background-color: #f1f3f5; }
 
     /* Action Buttons */
-    .action-btn { padding: .5rem .9rem; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: background-color 0.2s ease-in-out, transform 0.1s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3em; }
+    .action-btn { padding: .5rem .9rem; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: background-color 0.2s ease-in-out, transform 0.1s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3em; box-sizing: border-box; }
     .action-btn:hover { transform: translateY(-1px); }
     .action-btn:active { transform: translateY(0px); }
     .download-btn { background-color: #17a2b8; }
@@ -105,11 +109,11 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.6); /* Darker overlay */
+      background-color: rgba(0, 0, 0, 0.6); 
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 1040; /* Below notifications but above page */
+      z-index: 1040; 
       opacity: 0;
       visibility: hidden;
       transition: opacity 0.3s ease, visibility 0s linear 0.3s;
@@ -121,11 +125,11 @@
     }
     .modal-content {
       background-color: #fff;
-      padding: 25px 30px; /* More padding */
-      border-radius: 8px; /* More rounded */
+      padding: 25px 30px; 
+      border-radius: 8px; 
       box-shadow: 0 5px 20px rgba(0,0,0,0.25);
       width: 90%;
-      max-width: 450px; /* Slightly wider */
+      max-width: 450px; 
       transform: scale(0.95);
       opacity: 0;
       transition: transform 0.3s ease, opacity 0.3s ease;
@@ -149,8 +153,8 @@
     }
     .modal-actions {
       display: flex;
-      justify-content: flex-end; /* Align buttons to the right */
-      gap: 12px; /* Space between buttons */
+      justify-content: flex-end; 
+      gap: 12px; 
     }
     .modal-btn {
       padding: 0.6rem 1.2rem;
@@ -162,46 +166,174 @@
       transition: background-color 0.2s ease, box-shadow 0.2s ease;
     }
     .modal-btn-confirm {
-      background-color: #28a745; /* Green for confirm */
+      background-color: #28a745; 
       color: white;
     }
     .modal-btn-confirm:hover { background-color: #218838; box-shadow: 0 2px 4px rgba(40,167,69,.4);}
     .modal-btn-cancel {
-      background-color: #6c757d; /* Gray for cancel */
+      background-color: #6c757d; 
       color: white;
     }
     .modal-btn-cancel:hover { background-color: #5a6268; box-shadow: 0 2px 4px rgba(108,117,125,.4);}
-    .modal-btn-delete { /* Specific style for delete confirmation */
+    .modal-btn-delete { 
         background-color: #dc3545;
         color: white;
     }
     .modal-btn-delete:hover { background-color: #c82333; box-shadow: 0 2px 4px rgba(220,53,69,.4);}
 
 
+    /* --- MOBILE ADAPTATIONS --- */
     @media (max-width: 768px) {
       body { padding: 1rem; }
-      h1 { font-size: 1.8rem; }
-      details#download-status-spoiler summary { padding: 0.8rem 1rem; }
+      h1 { font-size: 1.7rem; margin-bottom: 1.2rem; } /* Slightly adjusted H1 */
+      
+      details#download-status-spoiler summary { padding: 0.8rem 1rem; font-size: 0.95rem; }
       details#download-status-spoiler .status-content { padding: 1rem; }
-      #update-status-btn { width: auto; margin-left: auto; margin-right: 0; }
-      #search-container { flex-direction: column; }
-      #search, #btn { width: 100%; border-radius: 4px; font-size: 1rem; }
-      #search { margin-bottom: 0.5rem; border-right: 1px solid #ced4da; }
+      
+      #update-status-btn { 
+        width: 100%; /* Full width for easier tapping */
+        margin: 0 0 1rem 0; /* Centered margin */
+        padding: .8rem;
+        font-size: 0.95rem;
+      }
+      
+      #search-container { 
+        flex-direction: column; 
+        gap: 0.75rem; /* Added gap for stacked items */
+        box-shadow: none; /* Simpler look for search on mobile */
+        margin-bottom: 1.2rem;
+      }
+      #search, #btn { 
+        width: 100%; 
+        border-radius: 5px; /* Consistent border-radius for stacked items */
+        font-size: 1rem; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow for inputs/buttons */
+      }
+      #search { 
+        margin-bottom: 0; /* Gap is handled by parent */
+        border-right: 1px solid #ced4da; /* Keep border as it's reset from PC */
+      }
       #btn { padding: .8rem; }
-      .results-table th, .results-table td, .status-table th, .status-table td { padding: .8rem; font-size: 0.85rem; word-break: break-word; }
-      .action-btn { font-size: 0.9rem; padding: .4rem .7rem; }
-      #notification-container { top: 10px; right: 10px; left: 10px; align-items: center; }
-      .notification { min-width: auto; width: calc(100% - 20px); margin: 0 auto; }
-      .modal-content { padding: 20px; }
-      .modal-title { font-size: 1.2rem; }
-      .modal-body { font-size: 0.95rem; }
+
+      /* Responsive Tables: Card-like display */
+      .results-table, .status-table {
+          border: none;
+          box-shadow: none;
+          background-color: transparent; /* Table itself is just a container */
+          margin-top: 0.5rem; /* Less margin for cards */
+      }
+
+      .results-table thead, .status-table thead {
+          display: none; /* Hide table headers */
+      }
+
+      .results-table tr, .status-table tr {
+          display: block;
+          margin-bottom: 1rem;
+          border: 1px solid #e0e0e0;
+          border-radius: 6px; /* Slightly more rounded cards */
+          background-color: #fff;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+          padding: 0.75rem; /* Padding inside the card */
+          overflow: hidden; /* Ensure child elements respect border-radius */
+      }
+      .results-table tr:last-child, .status-table tr:last-child {
+          margin-bottom: 0;
+      }
+
+      .results-table td, .status-table td {
+          display: flex; /* Use flex for label and value alignment */
+          justify-content: space-between; /* Puts label left, value right */
+          align-items: center; /* Vertically align if content wraps */
+          text-align: right; /* Value aligns to the right */
+          padding: 0.6rem 0.2rem; /* Reduced horizontal padding as card has padding */
+          font-size: 0.9rem;
+          border-bottom: 1px dashed #e9ecef;
+          word-break: break-word; /* Ensure long values wrap */
+      }
+      .results-table td:last-child, .status-table td:last-child {
+          border-bottom: none;
+      }
+
+      .results-table td::before, .status-table td::before {
+          content: attr(data-label);
+          font-weight: 600;
+          color: #333; /* Darker label for better contrast */
+          text-align: left;
+          padding-right: 10px;
+          flex-shrink: 0; /* Prevent label from shrinking */
+      }
+      
+      /* Specific handling for Title/Name to allow more space for value */
+      .results-table td[data-label="Title"], .status-table td[data-label="Name"] {
+          flex-direction: column; /* Stack label above value */
+          align-items: flex-start; /* Align items to the start */
+          gap: 0.2rem; /* Small gap between label and value */
+      }
+      .results-table td[data-label="Title"]::before, .status-table td[data-label="Name"]::before {
+          padding-right: 0; /* No extra padding needed when stacked */
+          font-size: 0.8rem; /* Slightly smaller label when stacked */
+          color: #555;
+      }
+       .results-table td[data-label="Title"] br, .status-table td[data-label="Name"] br {
+           display: none; /* Hide <br> if any, for cleaner stacking */
+       }
+
+
+      /* Action buttons within cards */
+      .results-table td[data-label="Action"], 
+      .status-table td.actions-col {
+          padding-top: 0.8rem;
+          padding-bottom: 0.2rem;
+          display: block; /* Override flex for action cell */
+      }
+      .results-table td[data-label="Action"]::before, 
+      .status-table td.actions-col::before {
+          display: none; /* No label for action cells */
+      }
+      .action-btn {
+          width: 100%; /* Full width buttons in cards */
+          font-size: 0.9rem;
+          padding: .7rem 1rem; /* Good tap size */
+          justify-content: center; /* Center icon and text */
+      }
+      
+      #notification-container { 
+          top: 10px; 
+          right: 10px; 
+          left: 10px; 
+          width: auto; /* Let flexbox handle width */
+          align-items: center; 
+      }
+      .notification { 
+          min-width: auto; 
+          width: calc(100% - 20px); /* Max width considering body padding */
+          max-width: 400px; /* Max width for notifications on mobile */
+          margin: 0 auto; 
+          font-size: 0.9rem;
+      }
+      
+      .modal-content { padding: 20px 25px; width: calc(100% - 40px); } /* Ensure modal doesn't exceed screen width with padding */
+      .modal-title { font-size: 1.15rem; }
+      .modal-body { font-size: 0.9rem; line-height: 1.6; }
+      .modal-actions { gap: 10px; } /* Slightly less gap for modal buttons */
+      .modal-btn { font-size: 0.9rem; padding: 0.55rem 1rem; }
+
+      /* For very small screens, stack modal buttons */
+      @media (max-width: 360px) {
+        .modal-actions {
+            flex-direction: column;
+        }
+        .modal-btn {
+            width: 100%;
+        }
+      }
     }
   </style>
 </head>
 <body>
   <div id="notification-container"></div>
 
-  <!-- Custom Modal Structure -->
   <div id="custom-modal-overlay" class="modal-overlay">
     <div id="custom-modal-content" class="modal-content">
       <h3 id="modal-title" class="modal-title">Confirmation</h3>
@@ -242,16 +374,14 @@
     const downloadStatusSpoiler = document.getElementById('download-status-spoiler');
     const notificationContainer = document.getElementById('notification-container');
 
-    // Modal Elements
     const modalOverlay = document.getElementById('custom-modal-overlay');
     const modalTitleEl = document.getElementById('modal-title');
     const modalBodyEl = document.getElementById('modal-body');
     const modalBtnConfirm = document.getElementById('modal-btn-confirm');
     const modalBtnCancel = document.getElementById('modal-btn-cancel');
-    let modalResolve = null; // To store the Promise's resolve function
+    let modalResolve = null; 
 
     function showNotification(message, type = 'info', duration = 4000) {
-      // ... (showNotification function remains the same as previous version)
       const notification = document.createElement('div');
       notification.classList.add('notification', type);
       notification.textContent = message;
@@ -265,19 +395,14 @@
       if (duration > 0) { setTimeout(() => { if (notification.classList.contains('show')) { dismiss(); } }, duration); }
     }
 
-    // Custom Confirmation Modal Function
     function showConfirmationModal({ title = 'Confirm Action', body = 'Are you sure you want to proceed?', confirmText = 'Confirm', cancelText = 'Cancel', confirmButtonClass = 'modal-btn-confirm' }) {
       return new Promise((resolve) => {
-        modalResolve = resolve; // Store resolve function to be called by button clicks
-
+        modalResolve = resolve; 
         modalTitleEl.textContent = title;
-        modalBodyEl.innerHTML = body; // Use innerHTML to allow basic HTML in body
+        modalBodyEl.innerHTML = body; 
         modalBtnConfirm.textContent = confirmText;
         modalBtnCancel.textContent = cancelText;
-
-        // Apply specific class for confirm button (e.g., for delete)
         modalBtnConfirm.className = `modal-btn ${confirmButtonClass}`;
-
         document.body.classList.add('modal-open');
         modalOverlay.classList.add('show');
       });
@@ -287,23 +412,20 @@
       document.body.classList.remove('modal-open');
       modalOverlay.classList.remove('show');
       if (modalResolve) {
-        modalResolve(result); // Resolve the promise with true (confirm) or false (cancel)
-        modalResolve = null; // Clear for next use
+        modalResolve(result); 
+        modalResolve = null; 
       }
     }
 
     modalBtnConfirm.addEventListener('click', () => closeModal(true));
     modalBtnCancel.addEventListener('click', () => closeModal(false));
-    // Optional: Close modal if overlay is clicked (but not content)
     modalOverlay.addEventListener('click', (event) => {
         if (event.target === modalOverlay) {
             closeModal(false);
         }
     });
 
-
     async function doSearch() {
-      // ... (doSearch function remains the same, uses showNotification for empty query)
       const q = searchInput.value.trim();
       if (!q) { showNotification('⚠️ Please enter a search term.', 'warning', 2500); return; }
       resultsDiv.innerHTML = "<p>⏳ Searching, please wait...</p>";
@@ -318,9 +440,11 @@
             <tbody>
               ${list.map(item => `
                 <tr>
-                  <td>${item.size || 'N/A'}</td><td>${item.seeders || '0'}</td>
-                  <td>${item.title}</td><td>${item.indexer || 'N/A'}</td>
-                  <td><button class="action-btn download-btn" onclick="startDownload('${encodeURIComponent(item.link)}', this, '${item.title.replace(/'/g, "\\'")}')">⬇️ Download</button></td>
+                  <td data-label="Size">${item.size || 'N/A'}</td>
+                  <td data-label="Seeds">${item.seeders || '0'}</td>
+                  <td data-label="Title">${item.title}</td>
+                  <td data-label="Indexer">${item.indexer || 'N/A'}</td>
+                  <td data-label="Action"><button class="action-btn download-btn" onclick="startDownload('${encodeURIComponent(item.link)}', this, '${item.title.replace(/'/g, "\\'")}')">⬇️ Download</button></td>
                 </tr>`).join('')}
             </tbody></table>`;
       } catch (error) {
@@ -331,7 +455,6 @@
     }
 
     async function startDownload(link, buttonElement, title) {
-      // Use custom modal for confirmation
       const confirmed = await showConfirmationModal({
         title: '🚀 Start Download?',
         body: `Do you want to download:<br><strong>${title}</strong>?`,
@@ -373,7 +496,6 @@
     }
 
     async function fetchDownloadStatus() {
-      // ... (fetchDownloadStatus function remains the same)
       statusResultsDiv.innerHTML = "<p>⏳ Fetching download statuses...</p>";
       updateStatusBtn.disabled = true; updateStatusBtn.innerHTML = '🔄 Updating...';
       try {
@@ -389,8 +511,11 @@
             <tbody>
               ${statuses.map(item => `
                 <tr>
-                  <td>${item.name}</td><td>${item.size}</td><td>${item.progress}%</td><td>${item.status}</td>
-                  <td class="actions-col"><button class="action-btn delete-btn" onclick="deleteTorrent('${item.hash}', this, '${item.name.replace(/'/g, "\\'")}')">🗑️ Delete</button></td>
+                  <td data-label="Name">${item.name}</td>
+                  <td data-label="Size">${item.size}</td>
+                  <td data-label="Progress">${item.progress}%</td>
+                  <td data-label="Status">${item.status}</td>
+                  <td data-label="Actions" class="actions-col"><button class="action-btn delete-btn" onclick="deleteTorrent('${item.hash}', this, '${item.name.replace(/'/g, "\\'")}')">🗑️ Delete</button></td>
                 </tr>`).join('')}
             </tbody></table>`;
       } catch (error) {
@@ -404,13 +529,12 @@
     }
 
     async function deleteTorrent(hash, buttonElement, name) {
-      // Use custom modal for confirmation
       const confirmed = await showConfirmationModal({
         title: '🗑️ Confirm Deletion',
         body: `Are you sure you want to delete:<br><strong>${name}</strong><br>and its downloaded files? This action cannot be undone.`,
         confirmText: 'Yes, Delete Files',
         cancelText: 'No, Keep It',
-        confirmButtonClass: 'modal-btn-delete' // Use red button for delete confirm
+        confirmButtonClass: 'modal-btn-delete' 
       });
 
       if (!confirmed) {
