@@ -2,15 +2,12 @@ version: "3.8"
 
 services:
   proxy:
-    image: teddysun/xray
+    image: dixon961/easy-proxy:latest
     container_name: vless-proxy
     environment:
       # Paste here 3x_ui vless realty inbound link. Format: vless://UUID@IP:PORT?type=tcp&security=reality&pbk=STR&fp=chrome&sni=yahoo.com&sid=b8&spx=NAME
       # Jackett needs it to connect to blocked torrent trackers
       X_UI_LINK: ""
-    volumes:
-      - ./config/proxy:/etc/xray
-    entrypoint: ["/etc/xray/entrypoint.sh"]
     ports:
       - "1080:1080"   # SOCKS5
       - "3128:3128"   # HTTP
@@ -46,18 +43,6 @@ services:
       - "8080:8080"
       - "6881:6881"
       - "6881:6881/udp"
-    networks:
-      - proxy-net
-
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    container_name: jellyfin-test
-    volumes:
-      - ./config/jellyfin:/config
-      - ./cache/jellyfin:/cache
-      - ./media:/media
-    ports:
-      - "8096:8096"
     networks:
       - proxy-net
 
