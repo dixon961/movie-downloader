@@ -1,6 +1,3 @@
-Of course. Here is the entire `README.md` content enclosed in a single code block for easy copy-pasting.
-
-```
 # Movie Downloader Deluxe
 
 A comprehensive, containerized solution for searching and downloading media. This application combines Jackett for searching across multiple torrent trackers and qBittorrent for downloading, all managed through a clean web interface or a convenient Telegram bot.
@@ -144,4 +141,3 @@ These variables are used to configure the `movie-downloader` container.
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
-```
