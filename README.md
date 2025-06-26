@@ -28,7 +28,7 @@ The system is composed of four main services that run in isolated Docker contain
 ```+----------------+      +-------------------------+      +-------------------+
 |      User      |----->|   Movie Downloader App  |----->|    qBittorrent    |
 +----------------+      | (Web UI / Telegram Bot) |      +-------------------+
-                        +------------+------------+                |
+                        +------------+------------+               |
                                      | (Search)                   | (Downloads)
                                      v                            v
                         +------------+------------+         +--------------+
