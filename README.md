@@ -71,7 +71,7 @@ docker-compose up -d jackett qbittorrent
 1.  Open the qBittorrent Web UI by navigating to `http://localhost:8080`.
 2.  Log in with the default credentials:
     -   **Username:** `admin`
-    -   **Password:** `adminadmin`
+    -   **Password:** `adminadmin` (in newer version password shown in container logs)
 3.  **IMPORTANT**: Go to `Tools -> Options -> Web UI` and change your password. Note this new password for the next step.
 
 **Step 4: Configure Jackett**
