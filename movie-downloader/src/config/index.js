@@ -6,9 +6,11 @@ const config = {
   jackett: {
     baseUrl: process.env.JACKETT_BASE_URL || 'http://localhost:9117/api/v2.0/indexers',
     apiKey: process.env.JACKETT_API_KEY || '',
+    // Ensure indexers are read correctly, default to 'all' if not provided or empty
     indexers: (process.env.JACKETT_INDEXERS || 'all')
                 .split(',')
-                .map(i => i.trim()),
+                .map(i => i.trim())
+                .filter(i => i.length > 0), // Filter out empty strings from split
   },
   qbittorrent: {
     url: process.env.QB_URL || 'http://localhost:8080',

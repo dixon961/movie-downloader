@@ -24,6 +24,34 @@
       margin-top: 0; /* Adjusted for better spacing with body padding */
     }
     
+    /* Indexer Selection Styles */
+    #indexer-selection-container {
+      display: flex;
+      align-items: center;
+      gap: 10px; /* Space between label and select */
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    }
+    #indexer-selection-container label {
+      font-weight: 500;
+      color: #495057;
+    }
+    #indexer-select {
+      padding: 0.7rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      background-color: white;
+      min-width: 180px; /* Give it some base width */
+      flex-grow: 1; /* Allow it to take available space */
+      box-sizing: border-box;
+    }
+    #indexer-select:focus {
+      outline: none;
+      border-color: #80bdff;
+      box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
     /* Spoiler for Download Status */
     details#download-status-spoiler {
       background-color: #fff;
@@ -187,6 +215,19 @@
       body { padding: 1rem; }
       h1 { font-size: 1.7rem; margin-bottom: 1.2rem; } /* Slightly adjusted H1 */
       
+      #indexer-selection-container {
+        flex-direction: column;
+        align-items: stretch; /* Make label and select full width */
+        gap: 8px;
+      }
+      #indexer-selection-container label {
+        margin-bottom: 0; /* Remove bottom margin when stacked */
+      }
+      #indexer-select {
+        width: 100%; /* Ensure select takes full width */
+        min-width: auto;
+      }
+
       details#download-status-spoiler summary { padding: 0.8rem 1rem; font-size: 0.95rem; }
       details#download-status-spoiler .status-content { padding: 1rem; }
       
@@ -347,6 +388,15 @@
 
   <h1>🎬 Movie Downloader Deluxe</h1>
 
+  <!-- Indexer Selection UI -->
+  <div id="indexer-selection-container">
+    <label for="indexer-select">Search Indexer:</label>
+    <select id="indexer-select">
+      <option value="all">All Indexers</option>
+      <!-- Options will be populated by JavaScript -->
+    </select>
+  </div>
+
   <details id="download-status-spoiler">
     <summary>📊 Download Status <span id="status-summary-count">(0 active)</span></summary>
     <div class="status-content">
@@ -367,6 +417,7 @@
   <script>
     const searchInput = document.getElementById('search');
     const searchBtn   = document.getElementById('btn');
+    const indexerSelect = document.getElementById('indexer-select'); // Get the select element
     const resultsDiv = document.getElementById('results');
     const updateStatusBtn = document.getElementById('update-status-btn');
     const statusResultsDiv = document.getElementById('status-results');
@@ -425,15 +476,56 @@
         }
     });
 
+    // Function to fetch and populate indexers
+    async function populateIndexers() {
+      try {
+        const response = await fetch('/api/indexers');
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.message || `HTTP error! status: ${response.status}`);
+        }
+        const indexers = await response.json();
+        
+        // Clear existing options except "All Indexers"
+        indexerSelect.innerHTML = '<option value="all">All Indexers</option>';
+        
+        // Add fetched indexers
+        indexers.forEach(indexer => {
+          if (indexer !== 'all') { // Avoid duplicating 'All Indexers'
+            const option = document.createElement('option');
+            option.value = indexer;
+            option.textContent = indexer.charAt(0).toUpperCase() + indexer.slice(1); // Capitalize first letter
+            indexerSelect.appendChild(option);
+          }
+        });
+      } catch (error) {
+        console.error('Failed to fetch indexers:', error);
+        showNotification(`❌ Error loading indexers: ${error.message}`, 'error');
+        // Keep "All Indexers" as a fallback
+      }
+    }
+
     async function doSearch() {
       const q = searchInput.value.trim();
+      const selectedIndexer = indexerSelect.value; // Get selected indexer
+      
       if (!q) { showNotification('⚠️ Please enter a search term.', 'warning', 2500); return; }
+      
       resultsDiv.innerHTML = "<p>⏳ Searching, please wait...</p>";
+      
+      // Construct the URL with query and indexer parameters
+      const url = `/api/search?q=${encodeURIComponent(q)}${selectedIndexer ? `&indexer=${encodeURIComponent(selectedIndexer)}` : ''}`;
+      
       try {
-        const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const r = await fetch(url);
         if (!r.ok) { const errData = await r.json(); throw new Error(errData.message || `HTTP error! status: ${r.status}`); }
         const list = await r.json();
-        if (list.length === 0) { resultsDiv.innerHTML = "<p>🤷 No results found for your query.</p>"; return; }
+        
+        if (list.length === 0) { 
+          resultsDiv.innerHTML = "<p>🤷 No results found for your query.</p>"; 
+          return; 
+        }
+        
         resultsDiv.innerHTML = `
           <table class="results-table">
             <thead><tr><th>Size</th><th>Seeds</th><th>Title</th><th>Indexer</th><th>Action</th></tr></thead>
@@ -562,10 +654,13 @@
       }
     }
 
+    // Event listeners
     searchBtn.addEventListener('click', doSearch);
     searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') doSearch(); });
     updateStatusBtn.addEventListener('click', fetchDownloadStatus);
 
+    // Initial load: fetch indexers and then download status if spoiler is open
+    populateIndexers();
     if (downloadStatusSpoiler.hasAttribute('open')) { fetchDownloadStatus(); }
   </script>
 </body>

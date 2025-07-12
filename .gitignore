@@ -5,3 +5,5 @@
 !/config/proxy/entrypoint.sh
 docker-compose.yml
 /media
+.aider*
+.env

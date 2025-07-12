@@ -7,10 +7,11 @@ const jackettConfig = config.jackett || {};
 const { 
     baseUrl = 'http://localhost:9117/api/v2.0/indexers', // Default if not in config
     apiKey = '', 
-    indexers: configIndexers = ['all'] 
+    indexers: configuredIndexers = ['all'] // Default to 'all' if not specified
 } = jackettConfig;
 
-export async function searchTorrents(query) {
+// Modified searchTorrents function to accept an optional indexerId
+export async function searchTorrents(query, indexerId = null) {
   if (!apiKey) {
     console.error('Jackett API key is not configured. Search will fail.');
     return []; // Return empty or throw error
@@ -20,30 +21,45 @@ export async function searchTorrents(query) {
     return [];
   }
 
-
   const allResults = [];
-  const effectiveIndexers = configIndexers.includes('all') ? ['all'] : configIndexers;
+  
+  // Determine which indexers to query
+  const indexersToQuery = indexerId ? (indexerId === 'all' ? configuredIndexers : [indexerId]) : configuredIndexers;
 
-  await Promise.all(effectiveIndexers.map(async idx => {
-    // Reverting to the original path structure, without .json
-    // The full URL will be like: JACKETT_BASE_URL/all/results?apikey=...&Query=...
-    // or JACKETT_BASE_URL/indexerId/results?apikey=...&Query=...
-    const url = `${baseUrl}/${idx}/results`; // <--- REVERTED THIS LINE
+  // If the configured indexers are ['all'], and the user explicitly selected 'all',
+  // we should still query all configured indexers.
+  // If the user explicitly selected 'all', and configuredIndexers is NOT ['all'],
+  // we should query all configured indexers.
+  // If indexerId is null or undefined, we query all configured indexers.
+  // If indexerId is a specific indexer name, we query only that one.
+
+  // Let's refine the logic:
+  let targetIndexers;
+  if (indexerId === null || indexerId === 'all') {
+      // If user wants 'all' or no specific indexer is given, use all configured indexers.
+      // If 'all' is in configuredIndexers, it means Jackett's /all/results endpoint is intended.
+      // However, the API path is /api/v2.0/indexers/{indexerId}/results.
+      // So, if configuredIndexers is ['all'], we should query /api/v2.0/indexers/all/results.
+      // If configuredIndexers is ['indexer1', 'indexer2'] and user selects 'all', we query both.
+      if (configuredIndexers.length === 1 && configuredIndexers[0] === 'all') {
+          targetIndexers = ['all']; // Use Jackett's aggregate endpoint
+      } else {
+          targetIndexers = configuredIndexers; // Query each configured indexer individually
+      }
+  } else {
+      // User specified a single indexer
+      targetIndexers = [indexerId];
+  }
+
+  await Promise.all(targetIndexers.map(async idx => {
+    // Construct the URL based on the indexer ID
+    const url = `${baseUrl}/${idx}/results`;
 
     const params = {
       apikey: apiKey,
       Query: query,
-      // Jackett often uses 't=search' for Torznab queries, but for this direct API path,
-      // it might not be needed or might even conflict. Let's stick to what was implied.
-      // Adding a cache buster is generally good practice.
-      _: Date.now()
+      _: Date.now() // Cache buster
     };
-
-    // The original code also had PageSize: 50.
-    // This parameter might not be supported on the /api/v2.0/indexers/{id}/results endpoint.
-    // It's more common with the general /api/v2.0/results (Torznab) endpoint.
-    // Let's try without it first to simplify. If results are too few, we can investigate.
-    // params.PageSize = 50;
 
     console.log(`Jackett: Querying URL: ${url} with params:`, params); // Debug log
 
@@ -58,7 +74,7 @@ export async function searchTorrents(query) {
             link: r.MagnetUri || r.Link,
             seeders: r.Seeders || 0,
             peers: r.Peers || 0,
-            indexer: r.Tracker || idx,
+            indexer: r.Tracker || idx, // Use Tracker name if available, else the queried indexer ID
             publishDate: r.PublishDate,
           });
         });
@@ -68,19 +84,14 @@ export async function searchTorrents(query) {
     } catch (error) {
       let errorMessage = `Error searching Jackett indexer ${idx} for query "${query}": `;
       if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
         errorMessage += `Status ${error.response.status} - ${error.response.statusText}. `;
         errorMessage += `Data: ${JSON.stringify(error.response.data)}`;
       } else if (error.request) {
-        // The request was made but no response was received
         errorMessage += `No response received. Request: ${JSON.stringify(error.request)}`;
       } else {
-        // Something happened in setting up the request that triggered an Error
         errorMessage += `Error message: ${error.message}`;
       }
       console.error(errorMessage);
-      // Optionally, rethrow or handle to inform the user
     }
   }));
 

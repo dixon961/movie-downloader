@@ -2,12 +2,15 @@ version: "3.8"
 
 services:
   proxy:
-    image: dixon961/easy-proxy:latest
+    image: teddysun/xray
     container_name: vless-proxy
     environment:
       # Paste here 3x_ui vless realty inbound link. Format: vless://UUID@IP:PORT?type=tcp&security=reality&pbk=STR&fp=chrome&sni=yahoo.com&sid=b8&spx=NAME
       # Jackett needs it to connect to blocked torrent trackers
       X_UI_LINK: ""
+    volumes:
+      - ./config/proxy:/etc/xray
+    entrypoint: ["/etc/xray/entrypoint.sh"]
     ports:
       - "1080:1080"   # SOCKS5
       - "3128:3128"   # HTTP
@@ -46,20 +49,32 @@ services:
     networks:
       - proxy-net
 
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin-test
+    volumes:
+      - ./config/jellyfin:/config
+      - ./cache/jellyfin:/cache
+      - ./media:/media
+    ports:
+      - "8096:8096"
+    networks:
+      - proxy-net
+
   movie-downloader:
     build: ./movie-downloader
     container_name: movie-downloader
     restart: unless-stopped
     environment:
       - JACKETT_URL=http://jackett:9117
-      - JACKETT_API_KEY=QQQQQQQQQQQ # COPY jackett api key after startup
+      - JACKETT_API_KEY=a # COPY jackett api key after startup
       - JACKETT_INDEXERS=${JACKETT_INDEXERS:-all}
       - JACKETT_BASE_URL=http://jackett:9117/api/v2.0/indexers
       - QB_URL=http://qbittorrent:8080
       - QB_USER=admin
-      - QB_PASS=CHANGE_PASSWORD # login to qbittorrent web ui first, change password and paste it here
-      - TELEGRAM_BOT_TOKEN=CHANGE_TELEGRAM_BOT_TOKEN
-      - ALLOWED_USERS=1111,2222,3333 # comma-separated users, that will have access to this bot
+      - QB_PASS=adminadmin # login to qbittorrent web ui first, change password and paste it here
+      - TELEGRAM_BOT_TOKEN=7
+      - ALLOWED_USERS=1 # comma-separated users, that will have access to this bot
       - TZ=Europe/Amsterdam
     ports:
       - "9339:9339"

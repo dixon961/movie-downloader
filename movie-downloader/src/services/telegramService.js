@@ -4,9 +4,13 @@ import * as jackettService from './jackettService.js';
 import * as qbittorrentService from './qbittorrentService.js';
 
 const { botToken, allowedUsers } = config.telegram;
+const jackettConfig = config.jackett || {};
+const availableIndexers = jackettConfig.indexers && jackettConfig.indexers.length > 0 ? jackettConfig.indexers : ['all'];
 
 const linkMap = new Map(); // shortId -> { link, title } for search results
-const userState = new Map(); // userId -> 'awaiting_search_query' or other states
+// User state now needs to store selected indexer
+// userId -> { state: 'awaiting_search_query' | 'awaiting_indexer_selection', selectedIndexer: 'indexerName' | null }
+const userState = new Map(); 
 
 let bot; // Declare bot instance variable globally in this module
 
@@ -31,6 +35,24 @@ function sendMainMenu(chatId, text = "👋 Hello! How can I assist you today?") 
         [{ text: '📊 View Download Status', callback_data: 'action_status' }]
       ]
     }
+  });
+}
+
+// Function to send indexer selection menu
+function sendIndexerSelectionMenu(chatId) {
+  if (!bot) {
+    console.error("Telegram Bot not initialized when trying to send indexer selection menu.");
+    return;
+  }
+  const buttons = availableIndexers.map(indexer => {
+    return [{ text: indexer === 'all' ? 'All Indexers' : indexer, callback_data: `select_indexer_${indexer}` }];
+  });
+  
+  // Add a cancel option
+  buttons.push([{ text: '❌ Cancel', callback_data: 'action_cancel_indexer_selection' }]);
+
+  bot.sendMessage(chatId, "🌐 Please select an indexer to search:", {
+    reply_markup: { inline_keyboard: buttons }
   });
 }
 
@@ -83,52 +105,57 @@ export function initializeBot() {
 
     if (!isAllowed(userId)) return; 
 
-    if (userState.get(userId) !== 'awaiting_search_query') {
-      return;
-    }
+    const currentState = userState.get(userId);
 
-    const query = msg.text;
-    userState.delete(userId); 
+    // Handle search query input
+    if (currentState && currentState.state === 'awaiting_search_query') {
+      const query = msg.text;
+      const selectedIndexer = currentState.selectedIndexer; // Get the indexer from user state
 
-    await bot.sendMessage(chatId, `⏳ Searching for "${query}"... please wait.`);
-    console.log(`Telegram: Received search query "${query}" from user ${userId}`);
+      // Clear state for this user after processing the query
+      userState.delete(userId); 
 
-    try {
-      const searchResults = await jackettService.searchTorrents(query);
+      await bot.sendMessage(chatId, `⏳ Searching for "${query}"${selectedIndexer && selectedIndexer !== 'all' ? ` using "${selectedIndexer}"` : ''}... please wait.`);
+      console.log(`Telegram: Received search query "${query}"${selectedIndexer && selectedIndexer !== 'all' ? ` for indexer "${selectedIndexer}"` : ''} from user ${userId}`);
 
-      if (!searchResults || searchResults.length === 0) {
-        await bot.sendMessage(chatId, `🤷 Oops! No results found for "${query}". Try a different search term?`);
-        // After no results, directly offer to search again or go to main menu
-        bot.sendMessage(chatId, "What would you like to do?", {
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🔄 Search Again', callback_data: 'action_search' }],
-                    [{ text: '🏠 Main Menu', callback_data: 'action_main_menu' }]
-                ]
-            }
+      try {
+        // Pass the selected indexer to the search function
+        const searchResults = await jackettService.searchTorrents(query, selectedIndexer);
+
+        if (!searchResults || searchResults.length === 0) {
+          await bot.sendMessage(chatId, `🤷 Oops! No results found for "${query}"${selectedIndexer && selectedIndexer !== 'all' ? ` on "${selectedIndexer}"` : ''}. Try a different search term or indexer?`);
+          // After no results, directly offer to search again or go to main menu
+          bot.sendMessage(chatId, "What would you like to do?", {
+              reply_markup: {
+                  inline_keyboard: [
+                      [{ text: '🔄 Search Again', callback_data: 'action_search' }],
+                      [{ text: '🏠 Main Menu', callback_data: 'action_main_menu' }]
+                  ]
+              }
+          });
+          return;
+        }
+
+        const buttons = searchResults.slice(0, 10).map((item, index) => {
+          const shortId = `dl_item_${index}_${Date.now()}`; 
+          linkMap.set(shortId, { link: item.link, title: item.title });
+          const buttonText = `[${item.size}] S:${item.seeders || '0'} P:${item.peers || '0'} - ${item.title}`;
+          return [{ text: buttonText, callback_data: shortId }];
         });
-        return;
+
+        // *** ADD "Search Again" and "Main Menu" buttons to the results list ***
+        buttons.push([{ text: '🔄 Search Again', callback_data: 'action_search' }]);
+        buttons.push([{ text: '🏠 Main Menu', callback_data: 'action_main_menu' }]);
+
+
+        await bot.sendMessage(chatId, '✨ Here are the top results. Select one to see more details, or search again:', {
+          reply_markup: { inline_keyboard: buttons }
+        });
+      } catch (error) {
+        console.error(`Telegram: Error processing search for "${query}"${selectedIndexer && selectedIndexer !== 'all' ? ` on "${selectedIndexer}"` : ''}:`, error);
+        await bot.sendMessage(chatId, '❌ Sorry, an error occurred while searching. Please try again later.');
+        sendMainMenu(chatId, "What would you like to do next?");
       }
-
-      const buttons = searchResults.slice(0, 10).map((item, index) => {
-        const shortId = `dl_item_${index}_${Date.now()}`; 
-        linkMap.set(shortId, { link: item.link, title: item.title });
-        const buttonText = `[${item.size}] S:${item.seeders || '0'} P:${item.peers || '0'} - ${item.title}`;
-        return [{ text: buttonText, callback_data: shortId }];
-      });
-
-      // *** ADD "Search Again" and "Main Menu" buttons to the results list ***
-      buttons.push([{ text: '🔄 Search Again', callback_data: 'action_search' }]);
-      buttons.push([{ text: '🏠 Main Menu', callback_data: 'action_main_menu' }]);
-
-
-      await bot.sendMessage(chatId, '✨ Here are the top results. Select one to see more details, or search again:', {
-        reply_markup: { inline_keyboard: buttons }
-      });
-    } catch (error) {
-      console.error(`Telegram: Error processing search for "${query}":`, error);
-      await bot.sendMessage(chatId, '❌ Sorry, an error occurred while searching. Please try again later.');
-      sendMainMenu(chatId, "What would you like to do next?");
     }
   });
 
@@ -149,16 +176,9 @@ export function initializeBot() {
     // --- Main Actions ---
     if (callbackData === 'action_search') {
       await bot.answerCallbackQuery(qry.id);
-      userState.set(userId, 'awaiting_search_query');
-      try {
-        // If the message being edited was the search results list, delete it first
-        // or edit it to the search prompt. For simplicity, let's just send a new message.
-        // await bot.deleteMessage(chatId, messageId); // Optional: clean up previous message
-        await bot.sendMessage(chatId, "✍️ Okay, type your new search query now (or send /cancel to go back):");
-        // If the previous message was an inline keyboard, we might want to remove it.
-        // Editing the previous message to remove keyboard and change text:
-        // await bot.editMessageText("✍️ Okay, type your new search query now (or send /cancel to go back):", { chat_id: chatId, message_id: messageId, reply_markup: null });
-      } catch (e) { console.error("Error preparing for new search:", e.message); }
+      // Instead of directly asking for query, first ask for indexer
+      userState.set(userId, { state: 'awaiting_indexer_selection' });
+      sendIndexerSelectionMenu(chatId);
       return;
     }
 
@@ -207,6 +227,31 @@ export function initializeBot() {
       }
       sendMainMenu(chatId, "What would you like to do next?");
       return;
+    }
+
+    // --- Indexer Selection Handling ---
+    if (callbackData.startsWith('select_indexer_')) {
+      await bot.answerCallbackQuery(qry.id);
+      const selectedIndexer = callbackData.substring('select_indexer_'.length);
+      
+      // Update user state with the selected indexer
+      userState.set(userId, { state: 'awaiting_search_query', selectedIndexer: selectedIndexer });
+      
+      // Prompt for the search query
+      await bot.editMessageText(`🌐 Indexer set to: *${selectedIndexer === 'all' ? 'All Indexers' : selectedIndexer}*.\n\n✍️ Now, please type your search query:`, {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown'
+      });
+      return;
+    }
+
+    // Handle cancel for indexer selection
+    if (callbackData === 'action_cancel_indexer_selection') {
+        await bot.answerCallbackQuery(qry.id);
+        userState.delete(userId); // Clear state
+        sendMainMenu(chatId, "Indexer selection cancelled. What would you like to do?");
+        return;
     }
 
     // --- Torrent Deletion Flow ---
