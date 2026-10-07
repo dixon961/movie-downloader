@@ -63,6 +63,9 @@ services:
       - TZ=Europe/Amsterdam
     ports:
       - "9339:9339"
+    volumes:
+      # Read-only view of the downloads disk, used by /api/disk to report free space.
+      - ./media:/media:ro
     networks:
       - proxy-net
 

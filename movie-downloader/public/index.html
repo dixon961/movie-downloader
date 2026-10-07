@@ -69,6 +69,36 @@
         cursor: not-allowed;
     }
 
+    /* Disk space badge */
+    #disk-badge {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      margin: -0.5rem auto 2rem;
+      padding: 0.75rem 1.25rem;
+      max-width: 520px;
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      font-size: 0.95rem;
+      color: #495057;
+    }
+    #disk-badge-text { white-space: nowrap; }
+    #disk-bar {
+      flex-grow: 1;
+      height: 8px;
+      border-radius: 4px;
+      background-color: #e9ecef;
+      overflow: hidden;
+      min-width: 80px;
+    }
+    #disk-bar-fill { height: 100%; width: 0; border-radius: 4px; transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out; }
+    #disk-badge.ok #disk-bar-fill { background-color: #28a745; }
+    #disk-badge.warn #disk-bar-fill { background-color: #ffc107; }
+    #disk-badge.crit #disk-bar-fill { background-color: #dc3545; }
+    #disk-badge.unknown #disk-bar { display: none; }
+
     /* Search container styles */
     details#search-spoiler {
       background-color: #fff;
@@ -130,6 +160,14 @@
     .delete-btn { background-color: #dc3545; }
     .delete-btn:hover { background-color: #c82333; }
     .status-table th.actions-col, .status-table td.actions-col { text-align: right; }
+
+    /* Search results that do not fit in the remaining free space */
+    .results-table tr.too-big { background-color: #fdf0f0; }
+    .results-table tr.too-big td:first-child { box-shadow: inset 3px 0 0 #dc3545; }
+    .results-table tr.too-big:hover { background-color: #fbe3e3; }
+    .fits-warning { display: block; font-size: 0.78rem; color: #dc3545; margin-top: 0.2rem; }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .action-btn:disabled:hover { transform: none; }
 
     /* Notification Styles */
     #notification-container { position: fixed; top: 20px; right: 20px; z-index: 1050; display: flex; flex-direction: column; gap: 12px; }
@@ -361,6 +399,14 @@
       .modal-actions { gap: 10px; } /* Slightly less gap for modal buttons */
       .modal-btn { font-size: 0.9rem; padding: 0.55rem 1rem; }
 
+      #disk-badge {
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+        gap: 0.5rem;
+      }
+      #disk-bar { flex-basis: 100%; }
+
       /* For very small screens, stack modal buttons */
       @media (max-width: 360px) {
         .modal-actions {
@@ -388,6 +434,11 @@
   </div>
 
   <h1>🎬 Movie Downloader Deluxe</h1>
+
+  <div id="disk-badge" class="unknown" title="Free space on the downloads disk">
+    <span id="disk-badge-text">💾 Свободное место: загрузка…</span>
+    <div id="disk-bar"><div id="disk-bar-fill"></div></div>
+  </div>
 
   <details id="download-status-spoiler">
     <summary>📊 Download Status <span id="status-summary-count">(0 active)</span></summary>
@@ -434,6 +485,11 @@
     const statusSummaryCount = document.getElementById('status-summary-count');
     const downloadStatusSpoiler = document.getElementById('download-status-spoiler');
     const notificationContainer = document.getElementById('notification-container');
+    const diskBadge = document.getElementById('disk-badge');
+    const diskBadgeText = document.getElementById('disk-badge-text');
+    const diskBarFill = document.getElementById('disk-bar-fill');
+
+    let diskFreeBytes = null;
 
     const modalOverlay = document.getElementById('custom-modal-overlay');
     const modalTitleEl = document.getElementById('modal-title');
@@ -441,6 +497,35 @@
     const modalBtnConfirm = document.getElementById('modal-btn-confirm');
     const modalBtnCancel = document.getElementById('modal-btn-cancel');
     let modalResolve = null; 
+
+    async function fetchDiskSpace() {
+      try {
+        const r = await fetch('/api/disk');
+        if (!r.ok) { throw new Error(`HTTP error! status: ${r.status}`); }
+        const d = await r.json();
+        diskFreeBytes = d.free;
+
+        if (d.usedPercent === null) {
+          diskBadge.className = 'unknown';
+          diskBarFill.style.width = '0';
+          diskBadgeText.textContent = `💾 Свободно ${d.freeHuman}`;
+          diskBadge.title = `Свободное место на диске загрузок (${d.source})`;
+          return;
+        }
+
+        const level = d.usedPercent >= 90 ? 'crit' : (d.usedPercent >= 80 ? 'warn' : 'ok');
+        diskBadge.className = level;
+        diskBarFill.style.width = `${Math.min(100, d.usedPercent)}%`;
+        diskBadgeText.textContent = `💾 Свободно ${d.freeHuman} из ${d.totalHuman} · ${d.usedPercent}% занято`;
+        diskBadge.title = `Диск загрузок: занято ${d.usedHuman}, свободно ${d.freeHuman}`;
+      } catch (error) {
+        console.error('Failed to fetch disk space:', error);
+        diskFreeBytes = null;
+        diskBadge.className = 'unknown';
+        diskBadgeText.textContent = '💾 Свободное место: неизвестно';
+        diskBadge.title = 'Не удалось получить данные о свободном месте';
+      }
+    }
 
     function showNotification(message, type = 'info', duration = 4000) {
       const notification = document.createElement('div');
@@ -499,14 +584,19 @@
           <table class="results-table">
             <thead><tr><th>Size</th><th>Seeds</th><th>Title</th><th>Indexer</th><th>Action</th></tr></thead>
             <tbody>
-              ${list.map(item => `
-                <tr>
-                  <td data-label="Size">${item.size || 'N/A'}</td>
+              ${list.map(item => {
+                const tooBig = diskFreeBytes !== null && typeof item.sizeBytes === 'number' && item.sizeBytes > diskFreeBytes;
+                return `
+                <tr${tooBig ? ' class="too-big"' : ''}>
+                  <td data-label="Size">${item.size || 'N/A'}${tooBig ? '<span class="fits-warning">⚠️ не влезет</span>' : ''}</td>
                   <td data-label="Seeds">${item.seeders || '0'}</td>
                   <td data-label="Title">${item.title}</td>
                   <td data-label="Indexer">${item.indexer || 'N/A'}</td>
-                  <td data-label="Action"><button class="action-btn download-btn" onclick="startDownload('${encodeURIComponent(item.link)}', this, '${item.title.replace(/'/g, "\\'")}')">⬇️ Download</button></td>
-                </tr>`).join('')}
+                  <td data-label="Action">${tooBig
+                    ? '<button class="action-btn download-btn" disabled title="Not enough free space on disk">🚫 No Space</button>'
+                    : `<button class="action-btn download-btn" onclick="startDownload('${encodeURIComponent(item.link)}', this, '${item.title.replace(/'/g, "\\'")}')">⬇️ Download</button>`}</td>
+                </tr>`;
+              }).join('')}
             </tbody></table>`;
       } catch (error) {
         console.error('Search failed:', error);
@@ -543,6 +633,7 @@
           buttonElement.innerHTML = '✅ Added';
           if (!downloadStatusSpoiler.hasAttribute('open')) { downloadStatusSpoiler.setAttribute('open', ''); }
           fetchDownloadStatus();
+          fetchDiskSpace();
         } else {
           showNotification(`⚠️ Failed to start download: ${result.message || 'Unknown error'}`, 'warning');
           buttonElement.innerHTML = 'Retry ⬇️';
@@ -612,6 +703,7 @@
         if (result.status === 'OK') {
           showNotification('✅ Torrent deletion initiated!', 'success');
           fetchDownloadStatus(); 
+          fetchDiskSpace(); 
         } else {
           showNotification(`⚠️ Failed to delete torrent: ${result.message || 'Unknown error'}`, 'warning');
           buttonElement.disabled = false; buttonElement.innerHTML = '🗑️ Delete';
@@ -655,6 +747,7 @@
         magnetInput.value = '';
         if (!downloadStatusSpoiler.hasAttribute('open')) { downloadStatusSpoiler.setAttribute('open', ''); }
         fetchDownloadStatus();
+        fetchDiskSpace();
       } catch (err) {
         showNotification(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -702,6 +795,7 @@
         torrentFileName.textContent = 'No file chosen';
         if (!downloadStatusSpoiler.hasAttribute('open')) { downloadStatusSpoiler.setAttribute('open', ''); }
         fetchDownloadStatus();
+        fetchDiskSpace();
       } catch (err) {
         showNotification(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -712,6 +806,7 @@
     });
 
     if (downloadStatusSpoiler.hasAttribute('open')) { fetchDownloadStatus(); }
+    fetchDiskSpace();
   </script>
 </body>
 </html>

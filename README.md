@@ -10,6 +10,7 @@ The entire stack is orchestrated with Docker Compose, ensuring a simple and repr
 -   **Powerful Search**: Leverages Jackett to search for content across hundreds of public and private trackers simultaneously.
 -   **Efficient Downloading**: Integrates with qBittorrent, a reliable and feature-rich torrent client.
 -   **Real-time Status**: View download progress and manage your queue from both the web and Telegram.
+-   **Free Space Indicator**: See how much room is left on the downloads disk at a glance, and get search results that will not fit flagged before you start them.
 -   **Secure & Private**:
     -   Restrict Telegram bot access to a whitelist of user IDs.
     -   Optional VLESS proxy service to help Jackett access blocked trackers.
@@ -108,9 +109,10 @@ The application is now running!
 #### Web Interface
 
 1.  Open your browser and go to `http://localhost:9339`.
-2.  Use the search bar to find a movie or TV show.
-3.  Click the `⬇️ Download` button next to a result to start the download.
-4.  Expand the "Download Status" section and click `🔄 Update Status` to see the progress of your downloads in qBittorrent. You can also delete torrents and their data from this view.
+2.  Check the disk badge under the title to see how much space is left on the downloads disk. It turns amber above 80% used and red above 90%.
+3.  Use the search bar to find a movie or TV show. Results larger than the remaining free space are highlighted and their download button is disabled.
+4.  Click the `⬇️ Download` button next to a result to start the download. You can also paste a magnet link or upload a `.torrent` file in the same section.
+5.  Expand the "Download Status" section and click `🔄 Update Status` to see the progress of your downloads in qBittorrent. You can also delete torrents and their data from this view.
 
 #### Telegram Bot
 
@@ -137,6 +139,7 @@ These variables are used to configure the `movie-downloader` container.
 | `ALLOWED_USERS`        | **Required.** Comma-separated list of numeric Telegram user IDs.          | `1111,2222,3333`               |
 | `TZ`                   | The timezone for the application.                                         | `Europe/Amsterdam`             |
 | `PORT`                 | The external port for the Web UI.                                         | `9339`                         |
+| `DOWNLOADS_PATH`       | Path used to report free space. If it is missing, the app asks qBittorrent instead. | `/media`                      |
 
 ## License
 

@@ -55,6 +55,7 @@ export async function searchTorrents(query) {
           allResults.push({
             title: r.Title,
             size: formatSize(r.Size),
+            sizeBytes: typeof r.Size === 'number' ? r.Size : null,
             link: r.MagnetUri || r.Link,
             seeders: r.Seeders || 0,
             peers: r.Peers || 0,
