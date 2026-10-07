@@ -70,12 +70,50 @@
     }
 
     /* Search container styles */
-    #search-container { display: flex; margin-bottom: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-radius: 4px; }
+    details#search-spoiler {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+      padding: 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    details#search-spoiler summary {
+      font-weight: 600;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      background-color: #f9f9f9;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s ease-in-out;
+    }
+    details#search-spoiler summary:hover { background-color: #f0f0f0; }
+    details#search-spoiler[open] summary {
+      border-bottom: 1px solid #ddd;
+      background-color: #e9ecef;
+    }
+    details#search-spoiler .search-content { padding: 1.25rem; }
+
+    #search-container { display: flex; margin-bottom: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-radius: 4px; }
     #search { flex-grow: 1; padding: .75rem 1rem; font-size: 1.1rem; border: 1px solid #ced4da; border-right: none; border-radius: 4px 0 0 4px; box-sizing: border-box; }
     #search:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
     #btn { font-size: 1.1rem; padding: .75rem 1.25rem; background-color: #28a745; color: white; border: 1px solid #28a745; border-radius: 0 4px 4px 0; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease-in-out; }
     #btn:hover { background-color: #218838; }
-    
+
+    /* Manual download section */
+    .manual-divider { text-align: center; color: #999; margin: 0.5rem 0 1rem; font-size: 0.9rem; }
+    .manual-download-row { display: flex; gap: 0.5rem; align-items: stretch; margin-bottom: 0.75rem; }
+    #magnet-input { flex-grow: 1; padding: 0.6rem 0.8rem; font-size: 0.95rem; border: 1px solid #ced4da; border-radius: 4px; resize: vertical; min-height: 42px; font-family: monospace; }
+    #magnet-input:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+    #magnet-btn { white-space: nowrap; }
+    .file-upload-row { align-items: center; }
+    .upload-label { background-color: #6c757d; cursor: pointer; white-space: nowrap; }
+    .upload-label:hover { background-color: #5a6268; }
+    #torrent-file-name { color: #666; font-size: 0.9rem; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #torrent-upload-btn:disabled { background-color: #aaa; cursor: not-allowed; transform: none; }
+
     /* Tables */
     .results-table, .status-table { border-collapse: collapse; margin-top: 1rem; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background-color: white; border-radius: 4px; overflow: hidden; }
     .results-table th, .results-table td, .status-table th, .status-table td { text-align: left; padding: 0.9rem 1.1rem; border-bottom: 1px solid #e9ecef; }
@@ -199,21 +237,25 @@
       
       #search-container { 
         flex-direction: column; 
-        gap: 0.75rem; /* Added gap for stacked items */
-        box-shadow: none; /* Simpler look for search on mobile */
+        gap: 0.75rem;
+        box-shadow: none;
         margin-bottom: 1.2rem;
       }
       #search, #btn { 
         width: 100%; 
-        border-radius: 5px; /* Consistent border-radius for stacked items */
+        border-radius: 5px;
         font-size: 1rem; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow for inputs/buttons */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       }
       #search { 
-        margin-bottom: 0; /* Gap is handled by parent */
-        border-right: 1px solid #ced4da; /* Keep border as it's reset from PC */
+        margin-bottom: 0;
+        border-right: 1px solid #ced4da;
       }
       #btn { padding: .8rem; }
+
+      .manual-download-row { flex-direction: column; }
+      .file-upload-row { flex-direction: row; flex-wrap: wrap; }
+      #torrent-file-name { min-width: 100%; margin-bottom: 0.5rem; }
 
       /* Responsive Tables: Card-like display */
       .results-table, .status-table {
@@ -357,12 +399,31 @@
     </div>
   </details>
 
-  <div id="search-container">
-    <input id="search" placeholder="Search for a movie or show…" aria-label="Search for media">
-    <button id="btn">🔍 Search</button>
-  </div>
-  
-  <div id="results"></div>
+  <details id="search-spoiler">
+    <summary>🔍 Search <span id="search-summary-text"></span></summary>
+    <div class="search-content">
+      <div id="search-container">
+        <input id="search" placeholder="Search for a movie or show…" aria-label="Search for media">
+        <button id="btn">🔍 Search</button>
+      </div>
+
+      <div id="manual-download-section">
+        <div class="manual-divider">or</div>
+        <div class="manual-download-row">
+          <textarea id="magnet-input" placeholder="Paste magnet link here..." rows="2" aria-label="Magnet link"></textarea>
+          <button id="magnet-btn" class="action-btn download-btn">🧲 Magnet</button>
+        </div>
+        <div class="manual-download-row file-upload-row">
+          <label for="torrent-file-input" class="action-btn upload-label">📄 Choose .torrent file</label>
+          <input type="file" id="torrent-file-input" accept=".torrent" hidden>
+          <span id="torrent-file-name">No file chosen</span>
+          <button id="torrent-upload-btn" class="action-btn download-btn" disabled>⬆️ Upload</button>
+        </div>
+      </div>
+
+      <div id="results"></div>
+    </div>
+  </details>
 
   <script>
     const searchInput = document.getElementById('search');
@@ -565,6 +626,90 @@
     searchBtn.addEventListener('click', doSearch);
     searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') doSearch(); });
     updateStatusBtn.addEventListener('click', fetchDownloadStatus);
+
+    // Manual download: magnet link
+    const magnetInput = document.getElementById('magnet-input');
+    const magnetBtn = document.getElementById('magnet-btn');
+    magnetBtn.addEventListener('click', async () => {
+      const link = magnetInput.value.trim();
+      if (!link) { showNotification('⚠️ Paste a magnet link first.', 'warning', 2500); return; }
+      if (!link.startsWith('magnet:')) { showNotification('⚠️ This doesn\'t look like a magnet link.', 'warning', 2500); return; }
+      const confirmed = await showConfirmationModal({
+        title: '🧲 Add Magnet Link?',
+        body: 'Send this magnet link to qBittorrent?',
+        confirmText: 'Yes, Download',
+        cancelText: 'No, Cancel'
+      });
+      if (!confirmed) { showNotification('👍 Cancelled.', 'info', 2000); return; }
+      magnetBtn.disabled = true;
+      magnetBtn.innerHTML = '⏳ Adding...';
+      try {
+        const response = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || `HTTP ${response.status}`);
+        showNotification('✅ Magnet link sent to qBittorrent!', 'success');
+        magnetInput.value = '';
+        if (!downloadStatusSpoiler.hasAttribute('open')) { downloadStatusSpoiler.setAttribute('open', ''); }
+        fetchDownloadStatus();
+      } catch (err) {
+        showNotification(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        magnetBtn.disabled = false;
+        magnetBtn.innerHTML = '🧲 Magnet';
+      }
+    });
+
+    // Manual download: .torrent file
+    const torrentFileInput = document.getElementById('torrent-file-input');
+    const torrentFileName = document.getElementById('torrent-file-name');
+    const torrentUploadBtn = document.getElementById('torrent-upload-btn');
+    torrentFileInput.addEventListener('change', () => {
+      if (torrentFileInput.files.length > 0) {
+        torrentFileName.textContent = torrentFileInput.files[0].name;
+        torrentUploadBtn.disabled = false;
+      } else {
+        torrentFileName.textContent = 'No file chosen';
+        torrentUploadBtn.disabled = true;
+      }
+    });
+    torrentUploadBtn.addEventListener('click', async () => {
+      if (!torrentFileInput.files.length) return;
+      const file = torrentFileInput.files[0];
+      const confirmed = await showConfirmationModal({
+        title: '📄 Upload Torrent File?',
+        body: `Upload <strong>${file.name}</strong> to qBittorrent?`,
+        confirmText: 'Yes, Upload',
+        cancelText: 'No, Cancel'
+      });
+      if (!confirmed) { showNotification('👍 Cancelled.', 'info', 2000); return; }
+      torrentUploadBtn.disabled = true;
+      torrentUploadBtn.innerHTML = '⏳ Uploading...';
+      try {
+        const formData = new FormData();
+        formData.append('torrent', file);
+        const response = await fetch('/api/download/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || `HTTP ${response.status}`);
+        showNotification('✅ Torrent file uploaded!', 'success');
+        torrentFileInput.value = '';
+        torrentFileName.textContent = 'No file chosen';
+        if (!downloadStatusSpoiler.hasAttribute('open')) { downloadStatusSpoiler.setAttribute('open', ''); }
+        fetchDownloadStatus();
+      } catch (err) {
+        showNotification(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        torrentUploadBtn.disabled = false;
+        torrentUploadBtn.innerHTML = '⬆️ Upload';
+        if (!torrentFileInput.files.length) torrentUploadBtn.disabled = true;
+      }
+    });
 
     if (downloadStatusSpoiler.hasAttribute('open')) { fetchDownloadStatus(); }
   </script>

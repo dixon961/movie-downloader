@@ -36,7 +36,7 @@ async function ensureAuthenticated(forceReAuth = false) {
       }
     );
 
-    if (loginResp.data === 'Ok.') {
+    if (loginResp.data === 'Ok.' || loginResp.status === 204) {
       console.log('qBittorrent authentication successful.');
       isAuthenticated = true;
       authRetryAttempted = false; // Reset general retry flag on success
@@ -90,6 +90,25 @@ async function qbApiCall(method, path, data = null, params = null) {
   throw new Error(`qBittorrent API call to ${path} failed after multiple retries.`);
 }
 
+
+export async function addTorrentFile(fileBuffer, fileName) {
+  console.log('Uploading torrent file to qBittorrent:', fileName);
+  try {
+    await ensureAuthenticated();
+    const formData = new FormData();
+    formData.append('torrents', new Blob([fileBuffer], { type: 'application/x-bittorrent' }), fileName);
+    const response = await client.post('/api/v2/torrents/add', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (response.status === 200) {
+      return { status: 'OK', message: `Torrent file "${fileName}" added successfully.` };
+    } else {
+      throw new Error(`Failed to add torrent file: ${response.data}`);
+    }
+  } catch (error) {
+    throw new Error(`Failed to add torrent file to qBittorrent: ${error.message}`);
+  }
+}
 
 export async function addTorrent(link) {
   console.log('Sending link to qBittorrent:', link);

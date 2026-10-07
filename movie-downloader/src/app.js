@@ -36,7 +36,7 @@ app.use('/api/*', (req, res) => {
 // For non-API 404s, you might want to serve index.html for SPAs, or a custom 404 page
 // For this app, serving index.html for unknown paths is fine as it's simple.
 app.get('*', (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../../public/index.html'));
+  res.sendFile(path.resolve(__dirname, '../public/index.html'));
 });
 
 

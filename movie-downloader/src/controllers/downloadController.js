@@ -1,5 +1,20 @@
 import * as qbittorrentService from '../services/qbittorrentService.js';
 
+export async function uploadTorrent(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No torrent file uploaded.' });
+    }
+    const result = await qbittorrentService.addTorrentFile(req.file.buffer, req.file.originalname);
+    res.json({ status: 'OK', message: result.message });
+  } catch (err) {
+    console.error('Error in uploadTorrent controller:', err.message);
+    const errorToPass = err instanceof Error ? err : new Error(err.message || 'Failed to upload torrent file');
+    errorToPass.status = err.response?.status || 500;
+    next(errorToPass);
+  }
+}
+
 export async function download(req, res, next) {
   // ... (existing download function) ...
   const { link } = req.body;
